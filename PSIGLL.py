@@ -9,6 +9,22 @@ import scipy
 import scipy as sc
 import scipy.stats
 
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+
+class LogitRegressionContinuous(LinearRegression):
+
+    def fit(self, x, p):
+        p = np.asarray(p)
+        y = np.log(p / (1 - p))
+        return super().fit(x, y)
+
+    def predict(self, x):
+        y = super().predict(x)
+        return 1 / (np.exp(-y) + 1)
+    
+
 def sigmoid1(u):
     """Derivative of the sigmoid function."""
     return (np.exp(-u)/(1+np.exp(-u))**2)
@@ -1050,7 +1066,7 @@ def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None):
         plt.legend()
     return lspvalstay
 
-def pval_SIGLE(states, X, M, barpi, net, use_net_MLE=False, l2_regularization=10):
+def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularization=10):
     """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
     
     Parameters
@@ -1080,9 +1096,14 @@ def pval_SIGLE(states, X, M, barpi, net, use_net_MLE=False, l2_regularization=10
     """
     n,p = X.shape
     matXtrue = X[:,M]
-    rho = matXtrue.T @ barpi.T
-    tildetheta = net(torch.from_numpy(rho.T).float())
-    tildetheta = tildetheta.detach().numpy()
+    if net is not None:
+        rho = matXtrue.T @ barpi.T
+        tildetheta = net(torch.from_numpy(rho.T).float())
+        tildetheta = tildetheta.detach().numpy()
+    else:
+        model = LogitRegressionContinuous()
+        model.fit( matXtrue, barpi)
+        tildetheta = model.coef_
     tildeGN = matXtrue.T @ np.diag(barpi*(np.ones(n)-barpi)) @ matXtrue
     usvd,s,vt = np.linalg.svd(tildeGN)
     tildeGN_12 = usvd @ np.diag(1/np.sqrt(s)) @ vt

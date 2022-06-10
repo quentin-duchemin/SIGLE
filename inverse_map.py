@@ -36,13 +36,13 @@ class Net(nn.Module):
         return x
 
 
-def train_network(matX,thetalim,nb_epochs=6000):
+def train_network(matX,thetalim,nb_epochs=6000, lrstart=0.01, lrdecay_step=1000, lrdecay_factor=0.1):
     n,s = matX.shape
 
     loss_values = []
     net = Net(s)
-    optimizer = optim.SGD(net.parameters(), lr=0.01)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.1)
+    optimizer = optim.SGD(net.parameters(), lr=lrstart)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lrdecay_step, gamma=lrdecay_factor)
 
     for i in range(nb_epochs):
         optimizer.zero_grad()   # zero the gradient buffers
