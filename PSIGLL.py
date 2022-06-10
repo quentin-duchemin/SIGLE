@@ -513,7 +513,7 @@ def compute_selection_event(theta_obs,X,yobs,lamb,conditioning_signs=True, compa
     nbM_admissibles = np.sort(list(set(map(binary_encoding,ls_states_admissibles))))
     return nbM_admissibles, ls_states_admissibles
 
-def params_saturated(bern, matXtrue, lsy):
+def params_saturated(bern, matXtrue, lsy, repetitions_removed=False):
     """Computes the probability of the vector of bits 'z' when the expected value of the response vector is given by 'bern'
     
     Parameters
@@ -535,11 +535,16 @@ def params_saturated(bern, matXtrue, lsy):
     n = len(bern)
     normalization = 0
     barpi = np.zeros(n)
-    for y in lsy:
-        proba = compute_proba(y,bern)
-        barpi += y * proba
-        normalization += proba
-    barpi /= normalization
+    if repetitions_removed:
+        for y in lsy:
+            proba = compute_proba(y,bern)
+            barpi += y * proba
+            normalization += proba
+        barpi /= normalization
+    else:
+        for y in lsy:
+            barpi += y
+        barpi /= len(lsy)
     rho = matXtrue.T @ barpi.T
     tildeGN = matXtrue.T @ np.diag(barpi*(np.ones(n)-barpi)) @ matXtrue
     usvd,s,vt = np.linalg.svd(tildeGN)
