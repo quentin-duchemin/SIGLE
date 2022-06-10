@@ -898,7 +898,7 @@ def true_conditional_distribution(theta_obs,X,yobs,lamb,truetheta,conditioning_s
     return (ls_probas, states)
 
 
-def SEI_by_sampling(sig, X, lamb, M):
+def SEI_by_sampling(sig, X, lamb, M, remove_repetitions=False):
     """Computes states belonging to the selection event.
     
     Parameters
@@ -937,10 +937,11 @@ def SEI_by_sampling(sig, X, lamb, M):
         if (count-1)%20==0:
             print(count,' states in the selection event found so far')
             count += 1
-    states = [list(item) for item in set(tuple(row) for row in saved_states)]
+    if remove_repetitions:
+        states = [list(item) for item in set(tuple(row) for row in saved_states)]
     return states
 
-def pval_weak_learner(probas,probasnull,states,barpi):
+def pval_weak_learner(statesnull,statesalt,barpi):
     """Computes the P-values obtained from the weak-learner which is a two-sided test based on the statistic \sum_{i=1}^n |\bar \pi^{\pi^0}_i-y_i| where \bar \pi^{\pi^0} is the expectation of the vector of observations under the null conditional to the selection event.
     
     Parameters
@@ -958,24 +959,24 @@ def pval_weak_learner(probas,probasnull,states,barpi):
     -------
     lspvalsnaive: samples of p-values obtained from the weak-learner.
     """
-    idxs_null = np.random.choice([i for i in range(len(states))], size=300, p=probasnull)
-    idxs = np.random.choice([i for i in range(len(states))], size=300, p=probas)
+#     idxs_null = np.random.choice([i for i in range(len(states))], size=300, p=probasnull)
+#     idxs = np.random.choice([i for i in range(len(states))], size=300, p=probas)
 
     samplesnull = []
-    for i in idxs_null:
-        samplesnull.append(np.sum(np.abs(barpi-states[i])))
+    for i in range(len(statesnull)):
+        samplesnull.append(np.sum(np.abs(barpi-statesnull[i])))
 
     lspvalsnaive = []
     samplesalt = []
-    for j,idxj in enumerate(idxs):
-        stat = np.sum(np.abs(barpi-states[idxj]))
+    for idxj in range(len(statesalt)):
+        stat = np.sum(np.abs(barpi-statesalt[idxj]))
         samplesalt.append(stat)
         pval = 2*min(np.mean(samplesnull>=stat),np.mean(samplesnull<=stat))
         lspvalsnaive.append(pval)
     return lspvalsnaive
 
 
-def pval_taylor(probas,states,X,lamb,M,show_distributions=False,thetanull=None):
+def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None):
     """Computes the P-values using the post-selection inference method from Taylor & Tibshirani '18.
     
     Parameters
@@ -1006,12 +1007,12 @@ def pval_taylor(probas,states,X,lamb,M,show_distributions=False,thetanull=None):
     doi: 10.1002/cjs.11313.
     """
     n,p = X.shape
-    idxs = np.random.choice([i for i in range(len(states))], size=300, p=probas)
-    lspvals_taylor = np.zeros((1,len(idxs)))
+    # idxs = np.random.choice([i for i in range(len(states))], size=300, p=probas)
+    lspvals_taylor = np.zeros((1,len(states)))
     lssamplesalt = []
     matXtrue = X[:,M]
     for ind in range(1):
-        for i,idx in enumerate(idxs):
+        for idx in range(len(states)):
             y = np.array(states[idx])
             model = LogisticRegression(C = 1/lamb, penalty='l1', solver='liblinear', fit_intercept=False)
             model.fit(X, y)
@@ -1036,7 +1037,7 @@ def pval_taylor(probas,states,X,lamb,M,show_distributions=False,thetanull=None):
                 pval = 2*min(np.mean(samplesnull<=bbar[ind]),np.mean(samplesnull>=bbar[ind]))
             else:
                 pval = 0
-            lspvals_taylor[ind,i]=pval    
+            lspvals_taylor[ind,idx]=pval    
     lspvalstay = np.mean(lspvals_taylor, axis=0)
     if show_distributions:
         a = plt.hist(samplesnull,density=True,alpha=0.2,label='Heuristic conditional null distribution for a specific vector of signs')
@@ -1044,7 +1045,7 @@ def pval_taylor(probas,states,X,lamb,M,show_distributions=False,thetanull=None):
         plt.legend()
     return lspvalstay
 
-def pval_SIGLE(states, probas, X, M, barpi, net, use_net_MLE=False, l2_regularization=10):
+def pval_SIGLE(states, X, M, barpi, net, use_net_MLE=False, l2_regularization=10):
     """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
     
     Parameters
@@ -1083,11 +1084,10 @@ def pval_SIGLE(states, probas, X, M, barpi, net, use_net_MLE=False, l2_regulariz
     GNtilde = matXtrue.T @ np.diag(sigmoid1(matXtrue @ tildetheta)) @ matXtrue
     VN = tildeGN_12 @ GNtilde
 
-    idxs = np.random.choice([i for i in range(len(states))], size=300, p=probas)
     lspvals_selec = []
     lspvals_sat = []
 
-    for i in idxs:
+    for i in range(len(states)):
         y = np.array(states[i])
         # selected
         if use_net_MLE:
