@@ -928,7 +928,7 @@ def SEI_by_sampling(sig, X, lamb, M, remove_repetitions=False, nb_ite=100000):
     saved_states = []
     count = 0
     n,p = X.shape
-    for i in range(100000):
+    for i in range(nb_ite):
         y = np.random.rand(n)<=sig
         # We compute the solution of the Sparse Logistic Regression with the current 'y'
         if np.sum(y) not in [0,n]:
