@@ -903,7 +903,7 @@ def true_conditional_distribution(theta_obs,X,yobs,lamb,truetheta,conditioning_s
     return (ls_probas, states)
 
 
-def SEI_by_sampling(sig, X, lamb, M, remove_repetitions=False):
+def SEI_by_sampling(sig, X, lamb, M, remove_repetitions=False, nb_ite=100000):
     """Computes states belonging to the selection event.
     
     Parameters
