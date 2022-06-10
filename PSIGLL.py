@@ -939,7 +939,7 @@ def SEI_by_sampling(sig, X, lamb, M, remove_repetitions=False):
             count += 1
     if remove_repetitions:
         states = [list(item) for item in set(tuple(row) for row in saved_states)]
-    return states
+    return saved_states
 
 def pval_weak_learner(statesnull,statesalt,barpi):
     """Computes the P-values obtained from the weak-learner which is a two-sided test based on the statistic \sum_{i=1}^n |\bar \pi^{\pi^0}_i-y_i| where \bar \pi^{\pi^0} is the expectation of the vector of observations under the null conditional to the selection event.
