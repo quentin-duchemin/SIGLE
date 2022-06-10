@@ -975,7 +975,7 @@ def pval_weak_learner(probas,probasnull,states,barpi):
     return lspvalsnaive
 
 
-def pval_taylor(probas,states,X,lamb,M,show_distributions=False):
+def pval_taylor(probas,states,X,lamb,M,show_distributions=False,thetanull=None):
     """Computes the P-values using the post-selection inference method from Taylor & Tibshirani '18.
     
     Parameters
@@ -1005,6 +1005,7 @@ def pval_taylor(probas,states,X,lamb,M,show_distributions=False):
     Can J Stat. 2018 Mar;46(1):41-61. 
     doi: 10.1002/cjs.11313.
     """
+    n,p = X.shape
     idxs = np.random.choice([i for i in range(len(states))], size=300, p=probas)
     lspvals_taylor = np.zeros((1,len(idxs)))
     lssamplesalt = []
@@ -1025,11 +1026,16 @@ def pval_taylor(probas,states,X,lamb,M,show_distributions=False):
             vlow, vup = low_up_taylor(theta_obs,SM,M,X,lamb,ind)
             gamma = np.zeros(len(M))
             gamma[ind] = 1
-            samples = np.random.normal(0,2*np.sqrt(gamma.T @ np.linalg.inv(matXtrue.T @  matXtrue)@gamma),100000)
+            if thetanull is None:
+                thetanull = np.zeros(p)
+            signull = sigmoid(X @ thetanull)
+            samples = np.random.normal(thetanull[M[ind]],np.sqrt(gamma.T @ np.linalg.inv(matXtrue.T @ np.diag(signull * (1-signull)) @  matXtrue)@gamma),100000)
             selected_idxs = np.where((samples>=vlow) & (samples<=vup))[0]
             samplesnull = samples[selected_idxs]
             if len(samplesnull)>=10:
                 pval = 2*min(np.mean(samplesnull<=bbar[ind]),np.mean(samplesnull>=bbar[ind]))
+            else:
+                pval = 0
             lspvals_taylor[ind,i]=pval    
     lspvalstay = np.mean(lspvals_taylor, axis=0)
     if show_distributions:
