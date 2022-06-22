@@ -871,6 +871,29 @@ def samples_taylor(path,index,ind=None, thetatrue=None):
     return (samples_truncated)
 
 
+
+
+###############################################
+###############################################
+########### CHECKING CONDITIONS CONDITIONAL CLT
+###############################################
+###############################################
+
+
+def upper_bound_condition_CCLT(states,X,barpi,tildeGN_12,M):
+    n = X.shape[0]
+    matXtrue = X[:,M]
+    coarse_upper_bound, upper_bound = 0, 0
+    barcov = np.zeros((n,n))
+    for y in states:
+        barcov += (y-barpi) @ (y-barpi).T / len(states)
+    for i in range(n):
+        coarse_upper_bound += np.abs(1-2*barpi[i]) * np.sqrt( np.linalg.norm(matXtrue[:i,:].T @ barcov[:i,:i] @ matXtrue[:i,:]) )
+        upper_bound += np.sqrt(barpi[i]*(1-barpi[i])) * np.abs(1-2*barpi[i]) * np.sqrt( np.matrix.trace(tildeGN_12 @ matXtrue[:i,:].T @ barcov[:i,:i] @ matXtrue[:i,:] @ tildeGN_12 ) )
+    coarse_upper_bound /= n
+    upper_bound /= n
+    return coarse_upper_bound, upper_bound
+
 ###############################################
 ###############################################
 ###################################### P-VALUES
