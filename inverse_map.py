@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
+from tqdm.notebook import tqdm
 import os
 
 def sigmoid(u):
@@ -44,7 +45,7 @@ def train_network(matX,thetalim,nb_epochs=6000, lrstart=0.01, lrdecay_step=1000,
     optimizer = optim.SGD(net.parameters(), lr=lrstart)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lrdecay_step, gamma=lrdecay_factor)
 
-    for i in range(nb_epochs):
+    for i in tqdm(range(nb_epochs)):
         optimizer.zero_grad()   # zero the gradient buffers
         target = np.random.normal(0,1,(1000, s)) * np.tile(thetalim*np.random.rand(1000).reshape(-1,1),(1,s))
         input = (matX.T @ sigmoid(matX @ target.T)).T

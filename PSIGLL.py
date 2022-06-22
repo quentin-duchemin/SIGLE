@@ -8,6 +8,7 @@ import torch
 import scipy
 import scipy as sc
 import scipy.stats
+from tqdm.notebook import tqdm
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
@@ -558,7 +559,7 @@ def params_saturated(bern, matXtrue, lsy, repetitions_removed=False):
             normalization += proba
         barpi /= normalization
     else:
-        for y in lsy:
+        for y in tqdm(lsy):
             barpi += y
         barpi /= len(lsy)
     rho = matXtrue.T @ barpi.T
@@ -967,7 +968,7 @@ def SEI_by_sampling(sig, X, lamb, M, remove_repetitions=False, nb_ite=100000):
     saved_states = []
     count = 0
     n,p = X.shape
-    for i in range(nb_ite):
+    for i in tqdm(range(nb_ite)):
         y = np.random.rand(n)<=sig
         # We compute the solution of the Sparse Logistic Regression with the current 'y'
         if np.sum(y) not in [0,n]:
@@ -978,9 +979,9 @@ def SEI_by_sampling(sig, X, lamb, M, remove_repetitions=False, nb_ite=100000):
             if equalset(M,M2) and (len(M)==len(M2)):
                 saved_states.append(y)
                 count += 1
-        if (count-1)%20==0:
-            print(count,' states in the selection event found so far')
-            count += 1
+#        if (count-1)%20==0:
+#            print(count,' states in the selection event found so far')
+#            count += 1
     if remove_repetitions:
         states = [list(item) for item in set(tuple(row) for row in saved_states)]
     return saved_states
@@ -1007,12 +1008,12 @@ def pval_weak_learner(statesnull,statesalt,barpi):
 #     idxs = np.random.choice([i for i in range(len(states))], size=300, p=probas)
 
     samplesnull = []
-    for i in range(len(statesnull)):
+    for i in tqdm(range(len(statesnull))):
         samplesnull.append(np.sum(np.abs(barpi-statesnull[i])))
 
     lspvalsnaive = []
     samplesalt = []
-    for idxj in range(len(statesalt)):
+    for idxj in tqdm(range(len(statesalt))):
         stat = np.sum(np.abs(barpi-statesalt[idxj]))
         samplesalt.append(stat)
         pval = 2*min(np.mean(samplesnull>=stat),np.mean(samplesnull<=stat))
@@ -1056,7 +1057,7 @@ def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None):
     lssamplesalt = []
     matXtrue = X[:,M]
     for ind in range(1):
-        for idx in range(len(states)):
+        for idx in tqdm(range(len(states))):
             y = np.array(states[idx])
             model = LogisticRegression(C = 1/lamb, penalty='l1', solver='liblinear', fit_intercept=False)
             model.fit(X, y)
@@ -1136,7 +1137,7 @@ def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularizati
     lspvals_selec = []
     lspvals_sat = []
 
-    for i in range(len(states)):
+    for i in tqdm(range(len(states))):
         y = np.array(states[i])
         # selected
         if use_net_MLE:
