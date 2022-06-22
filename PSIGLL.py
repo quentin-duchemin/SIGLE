@@ -870,6 +870,29 @@ def samples_taylor(path,index,ind=None, thetatrue=None):
     return (samples_truncated)
 
 
+
+###############################################
+###############################################
+########### CHECKING CONDITIONS CONDITIONAL CLT
+###############################################
+###############################################
+
+
+def upper_bound_condition_CCLT(states,X,barpi,tildeGN_12,M):
+    n = X.shape[0]
+    matXtrue = X[:,M]
+    coarse_upper_bound, upper_bound = 0, 0
+    barcov = np.zeros((n,n))
+    for y in states:
+        barcov += (y-barpi) @ (y-barpi).T / len(states)
+    for i in range(n):
+        coarse_upper_bound += np.abs(1-2*barpi[i]) * np.sqrt( np.linalg.norm(matXtrue[:i,:].T @ barcov[:i,:i] @ matXtrue[:i,:]) )
+        upper_bound += np.sqrt(barpi[i]*(1-barpi[i])) * np.abs(1-2*barpi[i]) * np.sqrt( np.matrix.trace(tildeGN_12 @ matXtrue[:i,:].T @ barcov[:i,:i] @ matXtrue[:i,:] @ tildeGN_12 ) )
+    coarse_upper_bound /= n
+    upper_bound /= n
+    return coarse_upper_bound, upper_bound
+
+
 ###############################################
 ###############################################
 ###################################### P-VALUES
@@ -1132,6 +1155,80 @@ def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularizati
         stat = np.linalg.norm( tildeGN_12 @ matXtrue.T @ (y-barpi))**2
         df = len(M)
         lspvals_sat.append(1-scipy.stats.chi2.cdf(stat, df))
+    return lspvals_selec, lspvals_sat
+
+
+
+def pval_SIGLE_linear(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularization=10):
+    """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
+    
+    Parameters
+    ----------
+    states : list of vectors in {0,1}^n
+        all the vector of the hypercube belonging to the selection event.
+    probas : list of float
+        conditional probabilities under a prescribed alternative associated to each vectors in selection event (corresponding to each entry of the input 'states').
+    X : 2 dimensional matrix
+        design matrix.
+    M : array of integers
+        selected support.
+    barpi : list of float
+        expectation of the vector of observations under the null conditional to the selection event.
+    net: neural network
+        neural network trained to compute \Psi = \Xi^{-1}. Stated otherwise, given some \rho \in \mathds R^s (where s=|M|), the network should output the unique (if it exists) vector \theta \in \mathds R^s such that \rho = X[:,M].T \sigma(X[:,M] @ theta). 
+
+    Returns
+    -------
+    lspvals_selec: samples of p-values using SIGLE in the selected model.
+    lspvals_sat: samples of p-values using SIGLE in the saturated model.
+
+
+    Note
+    ----
+    If \rho \in \mathds R^s (where s=|M|) can be written as \rho = X[:,M].T @ y where y \in \{0,1\}^n, then net(\rho) is the unconditional unpenalized MLE using the design X[:,M] and the response variable y.
+    """
+    n,p = X.shape
+    matXtrue = X[:,M]
+    if net is not None:
+        rho = matXtrue.T @ barpi.T
+        tildetheta = net(torch.from_numpy(rho.T).float())
+        tildetheta = tildetheta.detach().numpy()
+    else:
+        model = LogitRegressionContinuous()
+        model.fit( matXtrue, barpi)
+        tildetheta = model.coef_
+    tildeGN = matXtrue.T @ np.diag(barpi*(np.ones(n)-barpi)) @ matXtrue
+    usvd,s,vt = np.linalg.svd(tildeGN)
+    tildeGN_12 = usvd @ np.diag(1/np.sqrt(s)) @ vt
+    GNtilde = matXtrue.T @ np.diag(sigmoid1(matXtrue @ tildetheta)) @ matXtrue
+    VN = tildeGN_12 @ GNtilde
+
+    lspvals_selec = []
+    lspvals_sat = []
+    
+    
+    u = np.ones(len(M))
+    u /= np.linalg.norm(u)
+
+    for i in range(len(states)):
+        y = np.array(states[i])
+        # selected
+        if use_net_MLE:
+            rho = matXtrue.T @ y.T
+            theta = net(torch.from_numpy(rho.T).float())
+            theta = theta.detach().numpy()
+        else:
+            model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+            model.fit(matXtrue, y)
+            theta = model.coef_[0]
+        stat = np.vdot(u, VN @ (theta - tildetheta))
+        pv =  2*min(scipy.stats.norm.cdf(stat),1-scipy.stats.norm.cdf(stat))
+        lspvals_selec.append(pv)
+
+        # saturated
+        stat = np.vdot(u, tildeGN_12 @ matXtrue.T @ (y-barpi))
+        pv = 2*min(scipy.stats.norm.cdf(stat),1-scipy.stats.norm.cdf(stat))
+        lspvals_sat.append(pv)
     return lspvals_selec, lspvals_sat
 
 
