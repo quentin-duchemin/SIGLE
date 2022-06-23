@@ -1021,7 +1021,7 @@ def pval_weak_learner(statesnull,statesalt,barpi):
     return lspvalsnaive
 
 
-def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None):
+def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None,use_signs_4_statlin=True):
     """Computes the P-values using the post-selection inference method from Taylor & Tibshirani '18.
     
     Parameters
@@ -1071,7 +1071,10 @@ def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None):
 
             vlow, vup = low_up_taylor(theta_obs,SM,M,X,lamb,ind)
             gamma = np.zeros(len(M))
-            gamma[ind] = 1
+            if use_signs_4_statlin:
+                gamma = SM / np.linalg.norm(SM)
+            else:
+                gamma[ind] = 1
             if thetanull is None:
                 thetanull = np.zeros(p)
             signull = sigmoid(X @ thetanull)
@@ -1089,6 +1092,27 @@ def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None):
         a = plt.hist(lssamplesalt,density=True,alpha=0.2, label='Observed conditional distribution')
         plt.legend()
     return lspvalstay
+
+
+def compute_theta_bar(matXtrue, barpi, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}):
+    model = LogitRegressionContinuous()
+    model.fit( matXtrue, barpi)
+    tildetheta = model.coef_
+
+    gaps = []
+    if np.max(np.abs(sigmoid(matXtrue @ tildetheta) -  barpi))>1e-3:
+        L = (1/4) * np.linalg.norm(matXtrue.T @  matXtrue, ord=2) * np.sqrt( np.sum( ((np.sum(np.abs(matXtrue),axis=1))**2)))
+        def grad(the):
+            return (matXtrue.T @ np.diag(sigmoid1(matXtrue@the)) @ matXtrue @ matXtrue.T @ (sigmoid(matXtrue @ the)-barpi))
+        count = 0
+        gap = np.max(np.abs(matXtrue.T @ (sigmoid(matXtrue@tildetheta) - barpi)))
+        lr = grad_descent['lr']
+        while (count<grad_descent['max_ite'] and gap>1e-3):
+            tildetheta = tildetheta - (lr / L) * grad(tildetheta)
+            gap = np.max(np.abs(matXtrue.T @ (sigmoid(matXtrue@tildetheta) - barpi)))
+            count += 1
+            gaps.append(gap)
+    return (tildetheta, gaps)
 
 def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularization=10, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}):
     """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
@@ -1125,24 +1149,7 @@ def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularizati
         tildetheta = net(torch.from_numpy(rho.T).float())
         tildetheta = tildetheta.detach().numpy()
     else:
-        model = LogitRegressionContinuous()
-        model.fit( matXtrue, barpi)
-        tildetheta = model.coef_
-        
-        
-        gaps = []
-        if np.max(np.abs(sigmoid(matXtrue @ tildetheta) -  barpi))>1e-3:
-            L = (1/4) * np.linalg.norm(matXtrue.T @  matXtrue, ord=2) * np.sqrt( np.sum( ((np.sum(np.abs(matXtrue),axis=1))**2)))
-            def grad(the):
-                return (matXtrue.T @ np.diag(sigmoid1(matXtrue@the)) @ matXtrue @ matXtrue.T @ (sigmoid(matXtrue @ the)-barpi))
-            count = 0
-            gap = np.max(np.abs(matXtrue.T @ (sigmoid(matXtrue@tildetheta) - barpi)))
-            lr = grad_descent['lr']
-            while (count<grad_descent['max_ite'] and gap>1e-3):
-                tildetheta = tildetheta - (lr / L) * grad(tildetheta)
-                gap = np.max(np.abs(matXtrue.T @ (sigmoid(matXtrue@tildetheta) - barpi)))
-                count += 1
-                gaps.append(gap)
+        tildetheta, gaps = compute_theta_bar(matXtrue, barpi, grad_descent=grad_descent)
         
     tildeGN = matXtrue.T @ np.diag(barpi*(np.ones(n)-barpi)) @ matXtrue
     usvd,s,vt = np.linalg.svd(tildeGN)
@@ -1205,3 +1212,86 @@ def plot_cdf_pvalues(lists_pvalues, names, name_figsave=None):
     plt.title('CDF of the p-values',fontsize=13)
     if name_figsave is not None:
         plt.savefig(name_figsave,dpi=300)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+#########################
+##### Figures ellipse
+#########################
+
+def ellipse_testing(states, X, M, barpi, alpha=0.05, name_figsave=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, l2_regularization=100000):
+    if len(M)!=2:
+        print('The selected support should be of size 2 for 2D visualization.')
+    else:
+        from math import pi, cos, sin
+        import matplotlib
+        matplotlib.rcParams.update({'font.size': 12})
+        n,p = np.shape(X)
+        matXtrue = X[:,M]
+
+        tildetheta, gaps = compute_theta_bar(matXtrue, barpi, grad_descent=grad_descent)
+        u=tildetheta[0]       #x-position of the center
+        v=tildetheta[1]       #y-position of the center 
+        tildeGN = matXtrue.T @ np.diag(barpi*(np.ones(n)-barpi)) @ matXtrue
+        usvd,s,vt = np.linalg.svd(tildeGN)
+        tildeGN_12 = usvd @ np.diag(1/np.sqrt(s)) @ vt
+        GNtilde = matXtrue.T @ np.diag(sigmoid1(matXtrue @ tildetheta)) @ matXtrue
+        VN = tildeGN_12 @ GNtilde
+
+        usvd,s,vt = np.linalg.svd(VN)
+        df = matXtrue.shape[1]
+        quantile_chi2 = scipy.stats.chi2.ppf(1-alpha, df)
+        width = np.sqrt(quantile_chi2 / s[1]**2)
+        height = np.sqrt(quantile_chi2 / s[0]**2)
+        angle = np.arccos(np.vdot(np.array([1,0]),vt[1,:]))
+
+        a=width       #radius on the x-axis
+        b=height      #radius on the y-axis
+        t_rot=angle #rotation angle
+
+        t = np.linspace(0, 2*pi, 100)
+        Ell = np.array([a*np.cos(t) , b*np.sin(t)])  
+             #u,v removed to keep the same center location
+        R_rot = np.array([[cos(t_rot) , -sin(t_rot)],[sin(t_rot) , cos(t_rot)]])  
+             #2-D rotation matrix
+        Ell_rot = np.zeros((2,Ell.shape[1]))
+        for i in range(Ell.shape[1]):
+            Ell_rot[:,i] = np.dot(R_rot,Ell[:,i])
+        plt.plot( u+Ell_rot[0,:] , v+Ell_rot[1,:],'darkorange',linewidth=3 )    #rotated ellipse
+        plt.grid(color='lightgray',linestyle='--')
+
+        lsxin = []
+        lsyin = []
+        lsxout = []
+        lsyout = []
+
+        for i,y in enumerate(states):
+            model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+            model.fit(matXtrue, y)
+            hattheta = model.coef_[0]
+            a = hattheta[0]
+            b = hattheta[1]
+            if np.linalg.norm( VN @ (np.array([a,b]) - tildetheta))**2<=quantile_chi2:
+                lsxin.append(a)
+                lsyin.append(b)
+            else:
+                lsxout.append(a)
+                lsyout.append(b)
+        plt.scatter(lsxin,lsyin,c='green',marker='+',label=str(int(100*len(lsxin)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
+        plt.scatter(lsxout,lsyout,c='red',marker='x',label=str(int(100*len(lsxout)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
+        plt.legend(fontsize=13)
+
+        print('Proportion in the ellipse : ', len(lsxin)/(len(lsxin)+len(lsxout)))
+        print('Proportion outside of the ellipse : ', len(lsxout)/(len(lsxin)+len(lsxout)))
+        if name_figsave is not None:
+            plt.savefig(name_figsave,dpi=300)
+        plt.show()
