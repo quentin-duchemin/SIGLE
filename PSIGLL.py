@@ -1090,7 +1090,7 @@ def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None):
         plt.legend()
     return lspvalstay
 
-def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularization=10):
+def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularization=10, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}):
     """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
     
     Parameters
@@ -1129,6 +1129,21 @@ def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularizati
         model.fit( matXtrue, barpi)
         tildetheta = model.coef_
         
+        
+        gaps = []
+        if np.max(np.abs(sigmoid(matXtrue @ tildetheta) -  barpi))>1e-3:
+            L = (1/4) * np.linalg.norm(matXtrue.T @  matXtrue, ord=2) * np.sqrt( np.sum( ((np.sum(np.abs(matXtrue),axis=1))**2)))
+            def grad(the):
+                return (matXtrue.T @ np.diag(sigmoid1(matXtrue@the)) @ matXtrue @ matXtrue.T @ (sigmoid(matXtrue @ the)-barpi))
+            count = 0
+            gap = np.max(np.abs(matXtrue.T @ (sigmoid(matXtrue@tildetheta) - barpi)))
+            lr = grad_descent['lr']
+            while (count<grad_descent['max_ite'] and gap>1e-3):
+                tildetheta = tildetheta - (lr / L) * grad(tildetheta)
+                gap = np.max(np.abs(matXtrue.T @ (sigmoid(matXtrue@tildetheta) - barpi)))
+                count += 1
+                gaps.append(gap)
+        
     tildeGN = matXtrue.T @ np.diag(barpi*(np.ones(n)-barpi)) @ matXtrue
     usvd,s,vt = np.linalg.svd(tildeGN)
     tildeGN_12 = usvd @ np.diag(1/np.sqrt(s)) @ vt
@@ -1157,7 +1172,10 @@ def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularizati
         stat = np.linalg.norm( tildeGN_12 @ matXtrue.T @ (y-barpi))**2
         df = len(M)
         lspvals_sat.append(1-scipy.stats.chi2.cdf(stat, df))
-    return lspvals_selec, lspvals_sat
+    if grad_descent['return_gaps']:
+        return lspvals_selec, lspvals_sat, gaps
+    else:
+        return lspvals_selec, lspvals_sat
 
 
 def plot_cdf_pvalues(lists_pvalues, names, name_figsave=None):
