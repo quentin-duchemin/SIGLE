@@ -702,7 +702,7 @@ def time_in_selection_event(indexes, path, ls_states_admissibles):
     
 ########### TAYLOR
 
-def low_up_taylor(theta_obs,SM,M,X,lamb,ind=None):
+def low_up_taylor(theta_obs,SM,M,X,lamb,gamma):
     """Computes the truncation bounds for the approximate gaussian distribution of the statistic used in the post-selection inference method from Taylor & Tibshirani '18.
     
     Parameters
@@ -741,13 +741,13 @@ def low_up_taylor(theta_obs,SM,M,X,lamb,ind=None):
     A1 = -np.diag(SM)
     bbar = bhat + lamb* MM @ SM
     
-    gamma = np.zeros(len(M))
-    if ind is None:
-        for i in range(len(M)):
-            gamma[i]=SM[i]
-        gamma /= np.linalg.norm(gamma)
-    else:
-        gamma[ind] = 1
+#     gamma = np.zeros(len(M))
+#     if ind is None:
+#         for i in range(len(M)):
+#             gamma[i]=SM[i]
+#         gamma /= np.linalg.norm(gamma)
+#     else:
+#         gamma[ind] = 1
     c = MM @ gamma * (gamma.T @ MM @ gamma)**(-1)
     r = (np.eye(len(M))-np.dot(c.reshape(-1,1),gamma.reshape(1,-1))) @ bbar
     vup = np.Inf
@@ -1021,7 +1021,7 @@ def pval_weak_learner(statesnull,statesalt,barpi):
     return lspvalsnaive
 
 
-def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None,use_signs_4_statlin=True):
+def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None,use_signs_4_statlin=True, nsamples=100000):
     """Computes the P-values using the post-selection inference method from Taylor & Tibshirani '18.
     
     Parameters
@@ -1056,6 +1056,8 @@ def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None,use_sign
     lspvals_taylor = np.zeros((1,len(states)))
     lssamplesalt = []
     matXtrue = X[:,M]
+    signull = sigmoid(X @ thetanull)
+    Wnull = np.linalg.inv(matXtrue.T @ np.diag(signull * (1-signull)) @  matXtrue)
     for ind in range(1):
         for idx in tqdm(range(len(states))):
             y = np.array(states[idx])
@@ -1068,17 +1070,17 @@ def pval_taylor(states,X,lamb,M,show_distributions=False,thetanull=None,use_sign
             MM = np.linalg.inv(matXtrue.T @ np.diag(pihat*(1-pihat)) @ matXtrue)
             bbar = bhat + lamb* MM @ SM
             lssamplesalt.append(bbar[ind])
-
-            vlow, vup = low_up_taylor(theta_obs,SM,M,X,lamb,ind)
-            gamma = np.zeros(len(M))
             if use_signs_4_statlin:
                 gamma = SM / np.linalg.norm(SM)
             else:
                 gamma[ind] = 1
             if thetanull is None:
                 thetanull = np.zeros(p)
-            signull = sigmoid(X @ thetanull)
-            samples = np.random.normal(thetanull[M[ind]],np.sqrt(gamma.T @ np.linalg.inv(matXtrue.T @ np.diag(signull * (1-signull)) @  matXtrue)@gamma),100000)
+
+            vlow, vup = low_up_taylor(theta_obs,SM,M,X,lamb,gamma)
+            gamma = np.zeros(len(M))
+            
+            samples = np.random.normal(thetanull[M[ind]],np.sqrt(gamma.T @ Wnull @gamma),nsamples)
             selected_idxs = np.where((samples>=vlow) & (samples<=vup))[0]
             samplesnull = samples[selected_idxs]
             if len(samplesnull)>=10:
@@ -1114,7 +1116,7 @@ def compute_theta_bar(matXtrue, barpi, grad_descent={'lr':0.01,'return_gaps':Tru
             gaps.append(gap)
     return (tildetheta, gaps)
 
-def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularization=10, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}):
+def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularization=10, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, calibrated_from_samples=False, statesnull=None):
     """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
     
     Parameters
@@ -1160,6 +1162,8 @@ def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularizati
     lspvals_selec = []
     lspvals_sat = []
 
+    lsstat_sat, lsstatnull_sat = [], []
+    lsstat_selec, lsstatnull_selec = [], []
     for i in tqdm(range(len(states))):
         y = np.array(states[i])
         # selected
@@ -1172,13 +1176,40 @@ def pval_SIGLE(states, X, M, barpi, net=None, use_net_MLE=False, l2_regularizati
             model.fit(matXtrue, y)
             theta = model.coef_[0]
         stat = np.linalg.norm( VN @ (theta - tildetheta))**2
-        df = len(M)
-        lspvals_selec.append(1-scipy.stats.chi2.cdf(stat, df))
-
+        if not(calibrated_from_samples):
+            df = len(M)
+            lspvals_selec.append(1-scipy.stats.chi2.cdf(stat, df))
+        else:
+            lsstat_selec.append(stat)
         # saturated
         stat = np.linalg.norm( tildeGN_12 @ matXtrue.T @ (y-barpi))**2
-        df = len(M)
-        lspvals_sat.append(1-scipy.stats.chi2.cdf(stat, df))
+        if not(calibrated_from_samples):
+            df = len(M)
+            lspvals_sat.append(1-scipy.stats.chi2.cdf(stat, df))
+        else:
+            lsstat_sat.append(stat)
+    if calibrated_from_samples:
+        for i in tqdm(range(len(statesnull))):
+            y = np.array(statesnull[i])
+            # selected
+            if use_net_MLE:
+                rho = matXtrue.T @ y.T
+                theta = net(torch.from_numpy(rho.T).float())
+                theta = theta.detach().numpy()
+            else:
+                model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+                model.fit(matXtrue, y)
+                theta = model.coef_[0]
+            stat = np.linalg.norm( VN @ (theta - tildetheta))**2
+            lsstatnull_selec.append(stat)
+            # saturated
+            stat = np.linalg.norm( tildeGN_12 @ matXtrue.T @ (y-barpi))**2
+            lsstatnull_sat.append(stat)
+        lsstatnull_sat = np.array(lsstatnull_sat)
+        lsstatnull_selec = np.array(lsstatnull_selec)
+        for i in range(len(states)):
+            lspvals_sat.append(np.mean(lsstat_sat[i]<=lsstatnull_sat))
+            lspvals_selec.append(np.mean(lsstat_selec[i]<=lsstatnull_selec))  
     if grad_descent['return_gaps']:
         return lspvals_selec, lspvals_sat, gaps
     else:
