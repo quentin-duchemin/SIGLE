@@ -1,5 +1,5 @@
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
-from inverse_map import inverse_map, train_network
+from ..inverse_map import inverse_map, train_network
 from ..tools import *
 import matplotlib
 import matplotlib.pyplot as plt

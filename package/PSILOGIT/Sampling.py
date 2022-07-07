@@ -8,6 +8,10 @@ import os
 from .tools import *
 
 class Sampling:
+    """Class allowing to sample states in the selection event using the Rejection Sampling method (RS) or the Simulated Annealing algorithm (SA).
+    When SA is used, the sequence of states provided is asymptotically uniformly distributed on the selection event.
+    When RS is used, the sequence of states provided is distributed according to the conditional distribution.   
+    """
     
     def __init__(self, sampling_algorithm):
         if sampling_algorithm is None:
@@ -65,8 +69,6 @@ class Sampling:
 
         Parameters
         ----------
-        settings : dictionary of with the settings of the experiments to conduct
-            each entry of the dictionary should be of the form {'n':20,'p':10,'X':np.random.normal(n,p,(0,1)),'truetheta':np.ones(p),'cross_val':False,'lamb':2,'temperature':callable_function}.
         conditioning_signs : bool
                 If True, we consider that the selection event corresponds to the states allowing to recover both the selected support (i.e. the none zero entries of thete_obs) and the vector of signs (i.e. the correct signs of the none zero entries of theta_obs).
         total_length_SEISLR_path : bool
