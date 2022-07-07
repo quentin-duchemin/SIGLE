@@ -6,11 +6,46 @@ import scipy
 import matplotlib.pyplot as plt
 
 class FiguresSigle:
+    """Class allowing to plot figures analyzing the Sigle procedure and the SEI-SLR algorithm.
+    """
     
     def __init__(self):
         pass
 
-    def ellipse_testing(self, states, barpi, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, l2_regularization=100000):
+    def ellipse_testing(self, states, barpi, signull=None, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, l2_regularization=100000):
+        """For a selected support of size 2, this method show the proportion of stats following in the ellipse characterizing the rejection rejection of the hypothesis test with SIGLE in the selected model.
+        
+        Parameters
+        ----------
+        states : list of vectors in {0,1}^n
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS').
+        barpi : list of float
+            expectation of the vector of observations under the null conditional to the selection event.
+        signull : vector in [0,1]^n
+            Expectation of the response vector under the null. 
+            
+            
+            
+            
+            
+            
+            
+            It is used when we 'calibrated_from_samples' is True and when 'sampling_algorithm' is 'SA' (Simulated Annealing).
+        
+        
+        
+        
+        alpha : float
+            Level of the test.
+        figname : bool
+            If not None, the figure will be saved with the path 'figname'.
+        grad_descent : dictionary
+            Should be of the form {'lr':0.01,'return_gaps':True,'max_ite':100} and it is used for the method 'compute_theta_bar'. 
+            - 'lr' is the step size for the gradient descent algorithm.
+            - 'return_gaps' is set to True if one wants to return at the end of the algorithm the list of $\| X_M^{\top} (\sigma(X_M \bar \theta^{(t)})- \bar \pi) \|_{\infty}$ for the iterates $\theta^{(t)}$ of the gradient descent algorithm.
+        l2_regularization : float
+            l2 regularization used to compute the MLE from the solver of Logistic Regression in sk-learn. It should be as large as possible to remove regularization.
+        """
         if len(self.M)!=2:
             print('The selected support should be of size 2 for 2D visualization.')
         else:
@@ -55,6 +90,8 @@ class FiguresSigle:
             lsyin = []
             lsxout = []
             lsyout = []
+            sizein = []
+            sizeout = []
 
             for i,y in enumerate(states):
                 model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
@@ -62,14 +99,25 @@ class FiguresSigle:
                 hattheta = model.coef_[0]
                 a = hattheta[0]
                 b = hattheta[1]
+                if self.sampling_algorithm == 'SA':
+                    proba = compute_proba(y, signull)
                 if np.linalg.norm( VN @ (np.array([a,b]) - tildetheta))**2<=quantile_chi2:
                     lsxin.append(a)
                     lsyin.append(b)
+                    if self.sampling_algorithm == 'SA':
+                        sizein.append(proba)
                 else:
                     lsxout.append(a)
                     lsyout.append(b)
-            plt.scatter(lsxin,lsyin,c='green',marker='+',label=str(int(100*len(lsxin)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
-            plt.scatter(lsxout,lsyout,c='red',marker='x',label=str(int(100*len(lsxout)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
+                    if self.sampling_algorithm == 'SA':
+                        sizeout.append(proba)
+            if self.sampling_algorithm == 'RS':
+                plt.scatter(lsxin,lsyin,c='green',marker='+',label=str(int(100*len(lsxin)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
+                plt.scatter(lsxout,lsyout,c='red',marker='x',label=str(int(100*len(lsxout)/(len(lsxin)+len(lsxout))))+' % outside of the ellipse')
+            else:
+                plt.scatter(lsxin,lsyin,c='green',marker='+',s=sizein, label=str(int(100*len(lsxin)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
+                plt.scatter(lsxout,lsyout,c='red',marker='x',s=sizeout, label=str(int(100*len(lsxout)/(len(lsxin)+len(lsxout))))+' % outside of the ellipse')
+
             plt.legend(fontsize=13)
 
             print('Proportion in the ellipse : ', len(lsxin)/(len(lsxin)+len(lsxout)))
@@ -84,18 +132,12 @@ class FiguresSigle:
 
         Parameters
         ----------
-        theta_obs : 
-            solution of the l1-penalized likelihood model
-        X : 2 dimensional matrix
-            design matrix.
-        yobs : vector of bits
-            observed response vector.
-        lamb : float
-            regularization parameter for the l1-penalty.
         conditioning_signs : bool
             If True, we consider that the selection event corresponds to the states allowing to recover both the selected support (i.e. the none zero entries of thete_obs) and the vector of signs (i.e. the correct signs of the none zero entries of theta_obs).
         compare_with_energy : bool
             If True, we show a warning when some state wuold have been not correctly classified (as in or out of the selection event) based on the energy.
+        delta : float
+            Parameter allowing to define the energy (corresponding of the simulated annealing algorithm).
 
         Returns
         -------
@@ -160,12 +202,10 @@ class FiguresSigle:
 
         Parameters
         ----------
-        indexes : list of integers
-            each entry if the integer corresponding to a specific experiment launched using the SEI-SLR algorithm.
-        path : string
-            path to find the files saved by the SEI-SLR (exemple: 'myfiles/').
+        states : list of vectors belonging to {0,1}^n
+            Sequence of states obtained using the SEI-SLR algorithm.
         ls_states_admissibles : list of list
-            vectors of the hypercube belonging to the selection event.
+            Vectors of the hypercube belonging to the selection event.
         """
         selectionevent = [binary_encoding(ya) for ya in ls_states_admissibles]
         state2time = np.zeros(len(selectionevent)+1)
@@ -195,12 +235,10 @@ class FiguresSigle:
 
         Parameters
         ----------
-        indexes : list of integers
-            each entry if the integer corresponding to a specific experiment launched using the SEI-SLR algorithm.
-        path : string
-            path to find the files saved by the SEI-SLR (exemple: 'myfiles/').
+        states : list of vectors belonging to {0,1}^n
+            Sequence of states obtained using the SEI-SLR algorithm.
         lsM_admissibles : list of integers
-            each entry encodes some vector of bits (using the function 'binary_encoding').
+            Each entry encodes some vector of bits (using the function 'binary_encoding').
         """
         last_fy = [binary_encoding(y) for y in states]
         n = (self.X).shape[0]
@@ -244,12 +282,10 @@ class FiguresSigle:
 
         Parameters
         ----------
-        indexes : list of integers
-            each entry if the integer corresponding to a specific experiment launched using the SEI-SLR algorithm.
-        path : string
-            path to find the files saved by the SEI-SLR (exemple: 'myfiles/').
+        states : list of vectors belonging to {0,1}^n
+            Sequence of states obtained using the SEI-SLR algorithm.
         ls_states_admissibles : list of list
-            vectors of the hypercube belonging to the selection event.
+            All vectors of the hypercube belonging to the selection event.
         """
         proportions = np.zeros(len(indexes))
         last_fy = [binary_encoding(y) for y in states]

@@ -3,7 +3,8 @@ from tqdm.notebook import tqdm
 from ..tools import *
     
 class Weak:
-    
+    """This weak learner is a two-sided test based on the statistic $\sum_{i=1}^n |\overline \pi_i^{\theta_0} - y_i|$ where $\overline \pi^{\theta_0}$ is the expectation of the vector of observations under the null conditional to the selection event.
+    """
     def __init__(self):
         pass
 
@@ -12,22 +13,17 @@ class Weak:
 
         Parameters
         ----------
-        probas : list of float
-            conditional probabilities under a prescribed alternative associated to each vectors in selection event (corresponding to each entry of the input 'states').
-        probasnull : list of float
-            conditional probabilities under the null associated to each vectors in selection event (corresponding to each entry of the input 'states').
         states : list of vectors in {0,1}^n
-            all the vector of the hypercube belonging to the selection event.
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS').
         barpi : list of float
-            expectation of the vector of observations under the null conditional to the selection event.
-
+            Expectation of the vector of observations under the null conditional to the selection event.
+        signull : vector in [0,1]^n
+            Expectation of the response vector under the null. It is used when 'sampling_algorithm' is 'SA' (Simulated Annealing).
+            
         Returns
         -------
         lspvalsnaive: samples of p-values obtained from the weak-learner.
         """
-    #     idxs_null = np.random.choice([i for i in range(len(states))], size=300, p=probasnull)
-    #     idxs = np.random.choice([i for i in range(len(states))], size=300, p=probas)
-
         lspvalsnaive = []
         if self.sampling_algorithm == 'SA':
             for idxj in tqdm(range(len(statesalt))):

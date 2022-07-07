@@ -13,18 +13,12 @@ class Taylor:
 
         Parameters
         ----------
-        theta_obs : 
+        theta_obs : vector of floats of size len(M)
             solution of the l1-penalized likelihood model.
         SM : vector of -1 or +1
-            observed vector of signs, i.e. SM = sign(theta_obs[M]).
-        M : vector of integers
-            selected support.
-        X : 2 dimensional matrix
-            design matrix.
-        lamb : float
-            regularization parameter for the l1-penalty.
-        ind : None or integer
-            integer between 1 and |M| corresponding to the coordinate of the parameter vector that we want to focus on for the test. If None, the linear statistic of the vector of parameter is eta.T @ theta where eta is the observed vector of signs. 
+            Observed vector of signs, i.e. SM = sign(theta_obs[M]).
+        gamma : vector of size len(M)
+            Vector allowing to define the linear statistic of interest.
 
         Returns
         -------
@@ -72,15 +66,12 @@ class Taylor:
         probas : list of float
             conditional probabilities under a prescribed alternative associated to each vectors in selection event (corresponding to each entry of the input 'states').
         states : list of vectors in {0,1}^n
-            all the vector of the hypercube belonging to the selection event.
-        X : 2 dimensional matrix
-            design matrix.
-        lamb : float
-            regularization parameter for the l1-penalty.
-        M : array of integers
-            selected support.
+            States obtained using a sampling method (SA or RS).
         show_distributions : bool
-            If True, plot the 
+        thetanull : vector of floats
+            Value of theta under the null.
+        nsamples : int
+            Number of values sampled under the null before applying the truncation due to the asymptotic approximation of the selection event.
 
         Returns
         -------
@@ -110,25 +101,26 @@ class Taylor:
                 SM = np.sign(bhat)
                 pihat = sigmoid(self.X @ theta_obs)
                 MM = np.linalg.inv(matXtrue.T @ np.diag(pihat*(1-pihat)) @ matXtrue)
-                bbar = bhat + self.lamb* MM @ SM
-                lssamplesalt.append(bbar[ind])
+                bbar = bhat + self.lamb * MM @ SM
 
                 if gamma is None:
                     gamma = SM / np.linalg.norm(SM)
                 
+                lssamplesalt.append(gamma.T @ bbar)
+               
                 if thetanull is None:
                     thetanull = np.zeros(p)
 
                 vlow, vup = self.low_up_taylor(theta_obs,SM,gamma)
 
-                samples = np.random.normal(thetanull[self.M[ind]],np.sqrt(gamma.T @ Wnull @ gamma),nsamples)
+                samples = np.random.normal(gamma.T @ thetanull[self.M],np.sqrt(gamma.T @ Wnull @ gamma),nsamples)
                 selected_idxs = np.where((samples>=vlow) & (samples<=vup))[0]
                 samplesnull = samples[selected_idxs]
                 if len(samplesnull)>=10:
-                    pval = 2*min(np.mean(samplesnull<=bbar[ind]),np.mean(samplesnull>=bbar[ind]))
+                    pval = 2*min(np.mean(samplesnull<=gamma.T @ bbar),np.mean(samplesnull>=gamma.T @ bbar))
                 else:
                     pval = 0
-                lspvals_taylor[ind,idx]=pval    
+                lspvals_taylor[ind,idx]=pval
         lspvalstay = np.mean(lspvals_taylor, axis=0)
         if show_distributions:
             a = plt.hist(samplesnull,density=True,alpha=0.2,label='Heuristic conditional null distribution for a specific vector of signs')

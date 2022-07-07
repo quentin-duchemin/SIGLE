@@ -4,7 +4,7 @@ from tqdm.notebook import tqdm
 import torch.optim as optim
 import torch
 import os
-        
+
 from .tools import *
 
 class Sampling:
@@ -32,16 +32,13 @@ class Sampling:
         ----------
         sig : list of float
             unconditional expectation of the response vector.
-        X : 2 dimensional matrix
-            design matrix.
-        lamb : float
-            regularization parameter for the l1-penalty.
-        M : array of integers
-            selected support.
+        nb_ite : int
+            Number of iterations.
 
         Returns
         -------
-        states : vectors of the hypercube belonging to the selection event.
+        states : list of vectors in {0,1]^n 
+            vectors of the hypercube belonging to the selection event.
 
         Note
         ----
@@ -64,29 +61,32 @@ class Sampling:
                     count += 1
         return saved_states
 
-    def SEI_SLR(self, temperature=None, delta=0.009, total_length_SEISLR_path=1500, backup_start_time=1000, random_start=True, conditioning_signs=True):
+    def SEI_SLR(self, temperature=None, delta=0.009, total_length_SEISLR_path=1500, backup_start_time=1000, random_start=True, conditioning_signs=True, seed=None):
         """SEI-SLR (Selection Event Identification for the Sparse Logistic Regression) algorithm.
 
         Parameters
         ----------
+        temperature : function : int -> float
+            Returns the temperature for the given iteration.
+        delta : float
+            Parameter allowing to define the energy (corresponding of the simulated annealing algorithm).
+        total_length_SEISLR_path : int
+            Total number of steps performed by the SEI-SLR algorithm.
+        backup_start_time : int
+            Number of iterations at which we start saving the visited states.
+        random_start : bool
+            If True, we start the SA from the observed response. Otherwise, we draw a random first state.
         conditioning_signs : bool
-                If True, we consider that the selection event corresponds to the states allowing to recover both the selected support (i.e. the none zero entries of thete_obs) and the vector of signs (i.e. the correct signs of the none zero entries of theta_obs).
-        total_length_SEISLR_path : bool
-            total number of steps performed by the SEI-SLR algorithm.
-        compute_pvalues : bool
-            If True, the function will compute and save the p-values associated to the last visited states.
-
-        Saved files
-        -----------
-        lamb.npy : chosen regularization parameter
-        yobs.npy : observed response vector
-        theta_obs.npy : solution of the l1-penalized likelihood model corresponding to yobs
-        sig.npy : expectation of the response vector
-        M.npy : selected support
-        X.npy : design matrix
-
-        last_y.npy : list of the last visiated vectors by the SEI-SLR
-        FNR.npy : false negative rate for the last visited states.
+            If True, we consider that the selection event corresponds to the states allowing to recover both the selected support (i.e. the none zero entries of thete_obs) and the vector of signs (i.e. the correct signs of the none zero entries of theta_obs).
+        seed : int
+            If not None, we fix the random seed.
+        
+        Returns
+        -------
+        last_y : list of vectors in {0,1}^n
+            list of the last visited vectors by the SEI-SLR.
+        ls_FNR : list of floats
+            False negative rate for the last visited states.
         """
         
         self.sampling_algorithm = 'SA'
@@ -100,10 +100,13 @@ class Sampling:
             idjob = os.getpid()
         except:
             idjob = 0
-        np.random.seed()
-        idjob += np.random.randint(1,1000)
-        np.random.seed(idjob)
-
+        if seed is None:
+            np.random.seed()
+            idjob += np.random.randint(1,1000)
+            np.random.seed(idjob)
+        else:
+            np.random.seed(seed)
+            
         # Definition of the selection event
         complementM = [i for i in range(p) if i not in self.M]
         y = np.copy(self.yobs)
@@ -148,7 +151,7 @@ class Sampling:
         # the last admissible point seen is greater than 'time_before_restart', we restart the chain from a 'y' randomly
         # chosen among those ten admissible points.
         time_last_admissible = 1
-        time_before_restart = 3000
+        time_before_restart = 20000
         y_admissible = np.zeros((10,n))
         y_admissible[0,:] = self.yobs
         next_y_admis = 1
