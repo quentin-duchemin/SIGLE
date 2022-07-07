@@ -8,6 +8,8 @@ from ..tools import *
 from .FiguresSigle import FiguresSigle
 
 class Sigle(FiguresSigle):
+    """Class implementing the Post-Selection Inference procedure proposed with the SIGLE method in both the selected and the saturated model.
+    """
     
     def __init__(self):
         pass   
@@ -19,10 +21,8 @@ class Sigle(FiguresSigle):
         ----------
         bern : vector of floats
             expected value of the response vector.
-        matXtrue : 2 dimension matrix
-            design matrix corresponding to the restriction of the orginal matrix of features to the columns with integers in the selected support.
-        lsy : list of vectors of bits
-            lsy should contain states sampled from the uniform distribution on the selection event.
+        states : list of vectors of bits
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS').
 
         Returns
         -------
@@ -74,6 +74,22 @@ class Sigle(FiguresSigle):
         return (tildetheta, gaps)
     
     def upper_bound_condition_CCLT(self, states, barpi, tildeGN_12):
+        """Computes quantities arising in the assumption of our conditional Central Limit Theorem.
+        
+        Parameters
+        ----------
+        tildeGN_12 : 2 dimensional matrix
+            matrix  (\bar G_N(\theta^*))^{-1/2} 
+        barpi : list of float
+            expectation of the vector of observations under the null conditional to the selection event.
+        
+        Returns
+        -------
+        coarse_upper_bound : float
+            Quantity arising in the assumption of our Conditional Central Limit Theorem and that should go to 0 as $N\to \infty$ to meet our assumption.
+        upper_bound : float
+            Finer bound that arise in our Theorem and that should be tending to 0 as $N \to \infty$ to meet our assumption. 
+        """
         n = self.X.shape[0]
         matXtrue = X[:,M]
         coarse_upper_bound, upper_bound = 0, 0
@@ -87,29 +103,39 @@ class Sigle(FiguresSigle):
         upper_bound /= n * np.sqrt(len(self.M))
         return coarse_upper_bound, upper_bound
 
-    def pval_SIGLE(self, states, barpi, net=None, use_net_MLE=False, l2_regularization=10, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, calibrated_from_samples=False, statesnull=None, signull=None):
+    def pval_SIGLE(self, states, barpi, net=None, use_net_MLE=False, l2_regularization=100000, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, calibrated_from_samples=False, statesnull=None, signull=None):
         """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
 
         Parameters
         ----------
         states : list of vectors in {0,1}^n
-            all the vector of the hypercube belonging to the selection event.
-        probas : list of float
-            conditional probabilities under a prescribed alternative associated to each vectors in selection event (corresponding to each entry of the input 'states').
-        X : 2 dimensional matrix
-            design matrix.
-        M : array of integers
-            selected support.
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS').
         barpi : list of float
             expectation of the vector of observations under the null conditional to the selection event.
         net: neural network
             neural network trained to compute \Psi = \Xi^{-1}. Stated otherwise, given some \rho \in \mathds R^s (where s=|M|), the network should output the unique (if it exists) vector \theta \in \mathds R^s such that \rho = X[:,M].T \sigma(X[:,M] @ theta). 
+        use_net_MLE : bool
+            Set to True if one wants to use the neural network in 'net' to compute the MLE.
+        l2_regularization : float
+            l2 regularization used to compute the MLE from the solver of Logistic Regression in sk-learn if 'use_net_MLE' is False. It should be as large as possible to remove regularization.
+        grad_descent : dictionary
+            Should be of the form {'lr':0.01,'return_gaps':True,'max_ite':100} and it is used for the method 'compute_theta_bar'. 
+            - 'lr' is the step size for the gradient descent algorithm.
+            - 'return_gaps' is set to True if one wants to return at the end of the algorithm the list of $\| X_M^{\top} (\sigma(X_M \bar \theta^{(t)})- \bar \pi) \|_{\infty}$ for the iterates $\theta^{(t)}$ of the gradient descent algorithm.
+            - 'max_ite' is the maximal number of iterations in the gradient descent algorithm.
+        calibrated_from_samples : bool
+            Set to 'True' if we want to calibrate the testing procedure from samples in 'statesnull'.
+        statesnull : list of vectors in {0,1}^n
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS') when we consider the null hypothesis.
+        signull : vector in [0,1]^n
+            Expectation of the response vector under the null. It is used when we 'calibrated_from_samples' is True and when 'sampling_algorithm' is 'SA' (Simulated Annealing).
 
         Returns
         -------
-        lspvals_selec: samples of p-values using SIGLE in the selected model.
-        lspvals_sat: samples of p-values using SIGLE in the saturated model.
-
+        lspvals_selec : list of floats 
+            samples of p-values using SIGLE in the selected model.
+        lspvals_sat : list of floats
+            samples of p-values using SIGLE in the saturated model.
 
         Note
         ----

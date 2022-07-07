@@ -7,6 +7,8 @@ from .Sampling import Sampling
 from .tools import *
 
 class PSILOGIT(Methods, Sampling):
+    """Class allowing to conduct post-selection inference procedures in the logistic model with l1 penalty.
+    """
     def __init__(self, truetheta, lamb, X=None, n=None, yobs=None, M=None, SM=None, sampling_algorithm=None):
         super(Methods, self).__init__()
         self.truetheta = truetheta

@@ -2,6 +2,7 @@ from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from ..inverse_map import inverse_map, train_network
 from ..tools import *
 import matplotlib
+import scipy
 import matplotlib.pyplot as plt
 
 class FiguresSigle:
@@ -10,7 +11,7 @@ class FiguresSigle:
         pass
 
     def ellipse_testing(self, states, barpi, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, l2_regularization=100000):
-        if len(M)!=2:
+        if len(self.M)!=2:
             print('The selected support should be of size 2 for 2D visualization.')
         else:
             from math import pi, cos, sin
@@ -19,7 +20,7 @@ class FiguresSigle:
             n,p = np.shape(self.X)
             matXtrue = self.X[:,self.M]
 
-            tildetheta, gaps = compute_theta_bar(matXtrue, barpi, grad_descent=grad_descent)
+            tildetheta, gaps = self.compute_theta_bar(barpi, grad_descent=grad_descent)
             u=tildetheta[0]       #x-position of the center
             v=tildetheta[1]       #y-position of the center 
             tildeGN = matXtrue.T @ np.diag(barpi*(np.ones(n)-barpi)) @ matXtrue
@@ -77,9 +78,6 @@ class FiguresSigle:
                 plt.savefig(name_figsave,dpi=300)
             plt.show()
             
-
-
-
 
     def compute_selection_event(self, conditioning_signs=False, compare_with_energy=False, delta=0.009):
         """Finds all the vectors belonging to the selection event.
