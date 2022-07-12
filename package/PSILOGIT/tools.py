@@ -90,5 +90,17 @@ def compute_proba(z,bern):
     bern : vector of floats.
     """
     n = len(bern)
-    return np.exp( np.sum( z*np.log(bern) + (np.ones(n)-z)*np.log(np.ones(n)-bern)))
+    z = np.array(z)
+    return np.exp( np.sum( z*np.log(bern) + (np.ones(n)-z)*np.log(np.ones(n)-bern))-n*np.log(0.5))
+
+def compute_log_proba(z,bern):
+    """Computes the probability of the vector of bits 'z' when the expected value of the response vector is given by 'bern'
+
+    Parameters
+    ----------
+    z : list of bits.
+    bern : vector of floats.
+    """
+    n = len(bern)
+    return (np.sum( z*np.log(bern) + (np.ones(n)-z)*np.log(np.ones(n)-bern)))
     

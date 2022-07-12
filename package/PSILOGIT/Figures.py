@@ -176,17 +176,17 @@ class Figures:
                 if (np.max(np.abs(theta_hat[complementM]))<1e-5) and (np.min(np.abs(theta_hat[self.M])) > 1e-5):
                     counter += 1
                     ls_states_admissibles.append(list(y))
-                    if compare_with_energy and (p2y>1e-3 and p1y>1e-3):
-                        print('Warning: a state would have been uncorrectly classified using the energy',p2y)
+                    if compare_with_energy and (p2y>1e-3 or p1y>1e-3):
+                        print('Warning: a state would have been uncorrectly classified using the energy. $\delta$ may be chosen to large.',p2y)
                 else:
                     if compare_with_energy and (p2y<1e-3 and p1y<1e-3):
-                        print('Warning: a state would have been uncorrectly classified using the energy',p2y )
+                        print('Warning: a state would have been uncorrectly classified using the energy. $\delta$ may be chosen to small.',p2y )
 
         nbM_admissibles = np.sort(list(set(map(binary_encoding,ls_states_admissibles))))
         return nbM_admissibles, ls_states_admissibles
 
 
-    def histo_time_in_selection_event(self, states, ls_states_admissibles, figname=None):
+    def histo_time_in_selection_event(self, states, ls_states_admissibles, rotation_angle=0, figname=None):
         """Histogram showing the time spent in the selection event using the SEI-SLR algorithm.
 
         Parameters
@@ -216,6 +216,7 @@ class Figures:
         cs = ['green' for i in range(len(selectionevent))]
         cs += ['gray']
         plt.bar([i for i in range(len(state2time))],state2time,color=cs, tick_label=labels)
+        plt.xticks(rotation = rotation_angle) 
         plt.ylabel('Proposition of time spent in $E_{M}$',fontsize=12)
         plt.xticks(fontsize=13)
         if figname is not None:

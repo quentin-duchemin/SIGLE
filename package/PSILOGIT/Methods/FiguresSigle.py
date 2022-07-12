@@ -12,7 +12,7 @@ class FiguresSigle:
     def __init__(self):
         pass
 
-    def ellipse_testing(self, states, barpi, signull=None, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, l2_regularization=100000):
+    def ellipse_testing(self, states, barpi, signull=None, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, calibrated_from_samples=False, statesnull=None, l2_regularization=100000):
         """For a selected support of size 2, this method show the proportion of stats following in the ellipse characterizing the rejection rejection of the hypothesis test with SIGLE in the selected model.
         
         Parameters
@@ -22,19 +22,7 @@ class FiguresSigle:
         barpi : list of float
             expectation of the vector of observations under the null conditional to the selection event.
         signull : vector in [0,1]^n
-            Expectation of the response vector under the null. 
-            
-            
-            
-            
-            
-            
-            
-            It is used when we 'calibrated_from_samples' is True and when 'sampling_algorithm' is 'SA' (Simulated Annealing).
-        
-        
-        
-        
+            Expectation of the response vector under the null. It is used when we 'calibrated_from_samples' is True and when 'sampling_algorithm' is 'SA' (Simulated Annealing).
         alpha : float
             Level of the test.
         figname : bool
@@ -66,9 +54,23 @@ class FiguresSigle:
 
             usvd,s,vt = np.linalg.svd(VN)
             df = matXtrue.shape[1]
-            quantile_chi2 = scipy.stats.chi2.ppf(1-alpha, df)
-            width = np.sqrt(quantile_chi2 / s[1]**2)
-            height = np.sqrt(quantile_chi2 / s[0]**2)
+            
+            lsstatnull_selec = []
+            if calibrated_from_samples:
+                for i in range(len(statesnull)):
+                    y = np.array(statesnull[i])
+                    # selected
+                    modele = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+                    modele.fit(matXtrue, y)
+                    theta = modele.coef_[0]
+                    stat = np.linalg.norm( VN @ (theta - tildetheta))**2
+                    lsstatnull_selec.append(stat)
+                quantile = np.sort(lsstatnull_selec)[int((1-alpha)*len(lsstatnull_selec))]
+            else:
+                quantile = scipy.stats.chi2.ppf(1-alpha, df)
+            
+            width = np.sqrt(quantile / s[1]**2)
+            height = np.sqrt(quantile / s[0]**2)
             angle = np.arccos(np.vdot(np.array([1,0]),vt[1,:]))
 
             a=width       #radius on the x-axis
@@ -92,7 +94,7 @@ class FiguresSigle:
             lsyout = []
             sizein = []
             sizeout = []
-
+            
             for i,y in enumerate(states):
                 model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
                 model.fit(matXtrue, y)
@@ -101,7 +103,7 @@ class FiguresSigle:
                 b = hattheta[1]
                 if self.sampling_algorithm == 'SA':
                     proba = compute_proba(y, signull)
-                if np.linalg.norm( VN @ (np.array([a,b]) - tildetheta))**2<=quantile_chi2:
+                if np.linalg.norm( VN @ (np.array([a,b]) - tildetheta))**2<=quantile:
                     lsxin.append(a)
                     lsyin.append(b)
                     if self.sampling_algorithm == 'SA':
@@ -111,19 +113,27 @@ class FiguresSigle:
                     lsyout.append(b)
                     if self.sampling_algorithm == 'SA':
                         sizeout.append(proba)
+            
             if self.sampling_algorithm == 'RS':
                 plt.scatter(lsxin,lsyin,c='green',marker='+',label=str(int(100*len(lsxin)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
                 plt.scatter(lsxout,lsyout,c='red',marker='x',label=str(int(100*len(lsxout)/(len(lsxin)+len(lsxout))))+' % outside of the ellipse')
             else:
-                plt.scatter(lsxin,lsyin,c='green',marker='+',s=sizein, label=str(int(100*len(lsxin)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
-                plt.scatter(lsxout,lsyout,c='red',marker='x',s=sizeout, label=str(int(100*len(lsxout)/(len(lsxin)+len(lsxout))))+' % outside of the ellipse')
+                sizeout = np.array(sizeout)
+                sizein = np.array(sizein)
+                
+                low = min(np.min(sizein),np.min(sizeout))
+                up = max(np.max(sizein),np.max(sizeout))
+                sizeout = 9*(sizeout-low)/(up-low)+1
+                sizein = 9*(sizein-low)/(up-low)+1
+                plt.scatter(lsxin,lsyin,c='green',marker='+',s=sizein, label=str(int(100*np.sum(sizein)/(np.sum(sizein)+np.sum(sizeout))))+' % in the ellipse')
+                plt.scatter(lsxout,lsyout,c='red',marker='x',s=sizeout, label=str(int(100*np.sum(sizeout)/(np.sum(sizein)+np.sum(sizeout))))+' % outside of the ellipse')
 
             plt.legend(fontsize=13)
 
             print('Proportion in the ellipse : ', len(lsxin)/(len(lsxin)+len(lsxout)))
             print('Proportion outside of the ellipse : ', len(lsxout)/(len(lsxin)+len(lsxout)))
             if figname is not None:
-                plt.savefig(name_figsave,dpi=300)
+                plt.savefig(figname,dpi=300)
             plt.show()
             
 
@@ -194,10 +204,10 @@ class FiguresSigle:
                         print('Warning: a state would have been uncorrectly classified using the energy',p2y )
 
         nbM_admissibles = np.sort(list(set(map(binary_encoding,ls_states_admissibles))))
-        return nbM_admissibles, ls_states_admissibles
+        return np.array(nbM_admissibles), np.array(ls_states_admissibles)
 
 
-    def histo_time_in_selection_event(self, states, ls_states_admissibles, figname=None):
+    def histo_time_in_selection_event(self, states, ls_states_admissibles, rotation_angle=0, gather_states=False, show_ticks=True,  figname=None):
         """Histogram showing the time spent in the selection event using the SEI-SLR algorithm.
 
         Parameters
@@ -224,13 +234,20 @@ class FiguresSigle:
         labels += ['   not in $E_{M_0}$']
         cs = ['green' for i in range(len(selectionevent))]
         cs += ['gray']
-        plt.bar([i for i in range(len(state2time))],state2time,color=cs, tick_label=labels)
-        plt.ylabel('Proposition of time spent in $E_{M}$',fontsize=12)
+        if not(gather_states):
+            if show_ticks:
+                plt.bar([i for i in range(len(state2time))],state2time,color=cs, tick_label=labels)
+            else:
+                plt.bar([i for i in range(len(state2time))],state2time,color=cs)
+        else:
+            plt.bar([0,1],[1-state2time[-1],state2time[-1]],color=['green','gray'], tick_label=['in $E_M$','not in $E_M$'])
+        plt.ylabel('Proposition of time spent',fontsize=12)
         plt.xticks(fontsize=13)
+        plt.xticks(rotation = rotation_angle) 
         if figname is not None:
             plt.savefig(figname,dpi=250)
     
-    def last_visited_states(self, states, lsM_admissibles, figname=None):
+    def last_visited_states(self, states, lsM_admissibles=None, energies=None, figname=None):
         """Shows that time spent in the selection event using the SEI-SLR algorithm.
 
         Parameters
@@ -242,17 +259,12 @@ class FiguresSigle:
         """
         last_fy = [binary_encoding(y) for y in states]
         n = (self.X).shape[0]
-        try:
+        lsx_in = []
+        lsx_out = []
+        lsy_in = []
+        lsy_out = []
+        if lsM_admissibles is not None:
             selectionevent = [binary_encoding(ya) for ya in lsM_admissibles]
-        except:
-            selectionevent = []
-        plt.figure()
-        color = True
-        if color:
-            lsx_in = []
-            lsx_out = []
-            lsy_in = []
-            lsy_out = []
             for i,fy in enumerate(last_fy):
                 if fy in selectionevent:
                     lsx_in.append(i)
@@ -260,18 +272,27 @@ class FiguresSigle:
                 else:
                     lsx_out.append(i)
                     lsy_out.append(fy)
-            plt.scatter(lsx_in, lsy_in,marker='+',c='green', label='$y^{(t)}$ in $E_{M_0}$')
-            plt.scatter(lsx_out ,lsy_out,marker='x',c='gray',label='$y^{(t)}$ outside of $E_{M_0}$')
+        elif energies is not None:
+            lsx_in = np.where(energies<=1e-4)[0]
+            lsy_in =  [binary_encoding(states[l]) for l in lsx_in]
+            lsx_out = np.where(energies>1e-4)[0]
+            lsy_out = [binary_encoding(states[l]) for l in lsx_out]
         else:
-            plt.scatter([i for i in range(len(last_fy))], last_fy)
-            len(list(set(last_fy))),2**n
-        if n<=20:
+            lsx_out = [i for i in range(len(states))]
+            lsy_out = [binary_encoding(ya) for ya in states]
+            selectionevent = []
+            
+        plt.figure()
+        if lsx_in != []:
+            plt.scatter(lsx_in, lsy_in,marker='+',c='green', label='$y^{(t)}$ in $E_{M_0}$')
+        plt.scatter(lsx_out ,lsy_out,marker='x',c='gray',label='$y^{(t)}$ outside of $E_{M_0}$')
+        if lsM_admissibles is not None:
             nbM_admissibles = np.sort(list(set(map(binary_encoding,lsM_admissibles))))
             for j,fyls_ele in enumerate(nbM_admissibles):
                 if j==0:
                     plt.plot([0,len(last_fy)], [fyls_ele,fyls_ele], c='red', linestyle=(0, (5, 10)),linewidth=2.0, label='$y \in $E_{M_0}$')
                 else:
-                    plt.plot([0,len(last_fy)], [fyls_ele,fyls_ele], c='red', linestyle=(0, (5, 10)),linewidth=2.0)
+                    plt.plot([0,len(last_fy)], [fyls_ele,fyls_ele], c='red', linestyle=(0, (5, 10)),linewidth=2.0)        
         plt.ylabel('Visited state $y_t$', fontsize=13)
         plt.xlabel('Last time steps', fontsize=13)
         if figname is not None:

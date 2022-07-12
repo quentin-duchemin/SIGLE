@@ -58,7 +58,7 @@ class Taylor:
 
     
 
-    def pval_taylor(self, states, gamma=None, show_distributions=False, thetanull=None, nsamples=100000):
+    def pval_taylor(self, states, mode='self-designed', gamma=None, show_distributions=False, thetanull=None, nsamples=100000):
         """Computes the P-values using the post-selection inference method from Taylor & Tibshirani '18.
 
         Parameters
@@ -86,12 +86,17 @@ class Taylor:
         doi: 10.1002/cjs.11313.
         """
         n,p = (self.X).shape
-        lspvals_taylor = np.zeros((1,len(states)))
         lssamplesalt = []
         matXtrue = self.X[:,self.M]
         signull = sigmoid(self.X @ thetanull)
         Wnull = np.linalg.inv(matXtrue.T @ np.diag(signull * (1-signull)) @  matXtrue)
-        for ind in range(1):
+        if mode=='Bonferroni':
+            sizeloop = len(self.M)
+        else:
+            sizeloop = 1
+        
+        lspvals_taylor = np.zeros((sizeloop,len(states)))
+        for ind in range(sizeloop):
             for idx in tqdm(range(len(states))):
                 y = np.array(states[idx])
                 model = LogisticRegression(C = 1/self.lamb, penalty='l1', solver='liblinear', fit_intercept=False)
@@ -103,8 +108,13 @@ class Taylor:
                 MM = np.linalg.inv(matXtrue.T @ np.diag(pihat*(1-pihat)) @ matXtrue)
                 bbar = bhat + self.lamb * MM @ SM
 
-                if gamma is None:
+                if mode=='lasso-signs':
                     gamma = SM / np.linalg.norm(SM)
+                elif mode=='Bonferroni':
+                    gamma = np.zeros(len(self.M))
+                    gamma[ind] = 1
+                else:
+                    assert (gamma is not None), "The optional parameter 'gamma' needs to be defined if the mode 'self-designed' is used."
                 
                 lssamplesalt.append(gamma.T @ bbar)
                
@@ -121,7 +131,10 @@ class Taylor:
                 else:
                     pval = 0
                 lspvals_taylor[ind,idx]=pval
-        lspvalstay = np.mean(lspvals_taylor, axis=0)
+        if mode=='Bonferroni':
+            lspvalstay = np.ones(len(states)) - (np.ones(len(states))-np.min(lspvals_taylor, axis=0))**(len(self.M))
+        else:
+            lspvalstay = np.mean(lspvals_taylor, axis=0)
         if show_distributions:
             a = plt.hist(samplesnull,density=True,alpha=0.2,label='Heuristic conditional null distribution for a specific vector of signs')
             a = plt.hist(lssamplesalt,density=True,alpha=0.2, label='Observed conditional distribution')

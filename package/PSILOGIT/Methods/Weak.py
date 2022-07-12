@@ -34,8 +34,15 @@ class Weak:
                     normalization += proba
                     statnull = np.sum(np.abs(barpi-statesnull[i]))
                     statalt = np.sum(np.abs(barpi-statesalt[idxj]))
-                    pvalsup += proba * (statnull>statalt)
-                    pvalinf += proba * (statnull<statalt) 
+                    if statnull==statalt:
+                        if np.random.rand()<0.5:
+                            pvalsup += proba
+                        else:
+                            pvalinf += proba
+                    else:
+                        pvalsup += proba * (statnull>statalt)
+                        pvalinf += proba * (statnull<statalt) 
+                        
                 lspvalsnaive.append(2*min(pvalsup,pvalinf)/normalization)
         else:
             samplesnull = []

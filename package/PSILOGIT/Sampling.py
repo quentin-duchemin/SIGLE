@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from tqdm.notebook import tqdm
 import torch.optim as optim
+from tqdm.notebook import tqdm
 import torch
 import os
 
@@ -61,7 +62,7 @@ class Sampling:
                     count += 1
         return saved_states
 
-    def SEI_SLR(self, temperature=None, delta=0.009, total_length_SEISLR_path=1500, backup_start_time=1000, random_start=True, conditioning_signs=True, seed=None):
+    def SEI_SLR(self, temperature=None, delta=0.009, total_length_SEISLR_path=1500, backup_start_time=1000, random_start=True, conditioning_signs=True, repulsing_force = True, seed=None):
         """SEI-SLR (Selection Event Identification for the Sparse Logistic Regression) algorithm.
 
         Parameters
@@ -116,6 +117,8 @@ class Sampling:
 
         # list containing the last visited states
         last_y = []
+        
+        energies = []
         # list containing the false negative rate for the last visited states
         ls_FNR = []
         if random_start:
@@ -156,7 +159,7 @@ class Sampling:
         y_admissible[0,:] = self.yobs
         next_y_admis = 1
 
-        for j in range(total_length_SEISLR_path):
+        for j in tqdm(range(total_length_SEISLR_path)):
             if time_last_admissible > time_before_restart:
                 # We restart the procedure from a admissible 'y'
                 ind = np.random.randint(0,min(y_admissible.shape[0],next_y_admis))
@@ -192,7 +195,7 @@ class Sampling:
 
             # We set the sign the vector that best suits the KKT constraints
             S = np.clip(self.X.T @ (y-sig_hat) / self.lamb, -1, 1)
-
+            
             # We compute the energy
             if conditioning_signs:
                 p1y = np.sum(1 - S[self.M]*self.SM)/len(self.M)
@@ -206,12 +209,22 @@ class Sampling:
 
             T = temperature(j+2)
             if time_last_admissible != 0:
-                if np.exp(- deltaE / T) <= np.random.rand(): 
-                    # If the current 'y' does not come from a restart of the chain from an admissible point
-                    y[pos] = (y[pos]+1)%2 # We come back to the previous state
+                if repulsing_force:
+                    if min(1-np.exp(- deltaE / T) , (1-old_energy*(old_energy>1e-3))) <= np.random.rand(): 
+                        # If the current 'y' comes from a restart of the chain, we always accept it
+                        old_energy = new_energy
+                    else:
+                        # If the current 'y' does not come from a restart of the chain from an admissible point
+                        y[pos] = (y[pos]+1)%2 # We come back to the previous state
+                      
+
                 else:
-                   # If the current 'y' comes from a restart of the chain, we always accept it
-                    old_energy = new_energy
+                    if np.exp(- deltaE / T) <= np.random.rand(): 
+                        # If the current 'y' does not come from a restart of the chain from an admissible point
+                        y[pos] = (y[pos]+1)%2 # We come back to the previous state
+                    else:
+                       # If the current 'y' comes from a restart of the chain, we always accept it
+                        old_energy = new_energy
 
             if np.max(np.abs(theta_hat[complementM]))>1e-7:
                 time_last_admissible += 1
@@ -224,12 +237,13 @@ class Sampling:
             # Saving data        
             if j>backup_start_time:
                 last_y.append(np.array(y))
+                energies.append(old_energy)
                 Mhat = np.where(np.abs(theta_hat)>1e-5)[0]
                 false_negatives = 0
                 for k in self.M:
                     if k not in Mhat:
                         false_negatives += 1
                 ls_FNR.append(false_negatives/len(self.M))
-        return last_y, ls_FNR
+        return last_y, ls_FNR, np.array(energies)
 
 

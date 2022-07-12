@@ -13,6 +13,25 @@ class Methods(Sigle,Weak,Taylor):
         super(Weak, self).__init__()
         super(Taylor, self).__init__()
         
+        
+    def compute_power(self, lists_pvalues, names, alpha=0.05, states=None, sigalt=None):
+        assert len(lists_pvalues)==len(names),'You should provide exactly one name for each list of p-values'
+        PVALs = np.zeros(len(names))
+        if self.sampling_algorithm == 'RS':
+            for j in range(len(names)):
+                lspvals = lists_pvalues[j]
+                lspvals = np.sort(lspvals)
+                PVALs[j] = np.mean(lspvals<=alpha)
+        else:
+            for j in range(len(names)):
+                ls = []
+                normalization = 0
+                for i in range(len(states)):
+                    proba = compute_proba(states[i], sigalt)
+                    normalization += proba
+                    PVALs[j] += proba * (lists_pvalues[j][i]<=alpha)
+                PVALs /= normalization
+        return PVALs
 
     def plot_cdf_pvalues(self, lists_pvalues, names, states=None, sigalt=None, figname=None):
         """Shows the cumulative distribution function of the p-values.
@@ -55,5 +74,5 @@ class Methods(Sigle,Weak,Taylor):
         plt.legend(fontsize=13)
         plt.title('CDF of the p-values',fontsize=13)
         if figname is not None:
-            plt.savefig(name_figsave,dpi=300)
+            plt.savefig(figname,dpi=300)
             
