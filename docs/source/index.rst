@@ -14,7 +14,7 @@ Currently, the package allows to solve post-selection inference problems using:
 
 .. code-block:: bibtex
 
-    @InProceedings{pmlr-v80-massias18a,
+    @InProceedings{sigle2022,
       title     = {SIGLE: a valid procedure for Selective Inference with the Generalized Linear Lasso},
       author    = {Duchemin, Quentin and De Castro, Yohann},
       year      = {2022},
