@@ -79,10 +79,12 @@ def equalset(A,B):
     return res
 
 def logtemp(x):
+    """Temperature scheme for the SEI-SLR where the temperatures at time t is proportional to 1/log(t)
+    """
     return (0.4/np.log(x))
 
 def compute_proba(z,bern):
-    """Computes the probability of the vector of bits 'z' when the expected value of the response vector is given by 'bern'
+    """Computes (up to some constant) the probability of the vector of bits 'z' when the expected value of the response vector is given by 'bern'
 
     Parameters
     ----------
@@ -94,7 +96,7 @@ def compute_proba(z,bern):
     return np.exp( np.sum( z*np.log(bern) + (np.ones(n)-z)*np.log(np.ones(n)-bern))-n*np.log(0.5))
 
 def compute_log_proba(z,bern):
-    """Computes the probability of the vector of bits 'z' when the expected value of the response vector is given by 'bern'
+    """Computes (up to some constant) the logarithm of the probability of the vector of bits 'z' when the expected value of the response vector is given by 'bern'
 
     Parameters
     ----------

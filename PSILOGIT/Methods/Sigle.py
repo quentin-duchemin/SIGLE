@@ -53,6 +53,13 @@ class Sigle(FiguresSigle):
         return tildeGN_12, barpi
 
     def compute_theta_bar(self, barpi, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}):
+        """Computes :math:`\overline \\theta(\\theta^*) \in \mathbb R^s` which is the unique vector satisfying :math:`\mathbf X_M^{\\top}\sigma(\mathbf X_M \overline \\theta (\\theta^*))=\mathbf X_M^{\\top} \overline \pi^{\\theta^*}` 
+        where :math:`\overline \pi^{\\theta^*}` is the input parameter 'barpi'.
+        Parameters
+        ----------
+        barpi: vector
+            :math:`\overline \pi^{\\theta^*}`
+        """
         matXtrue = self.X[:,self.M]
         model = LogitRegressionContinuous()
         model.fit(matXtrue, barpi)

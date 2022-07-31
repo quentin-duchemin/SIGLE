@@ -9,26 +9,27 @@ from .tools import *
 class PSILOGIT(Methods, Sampling):
     """Class allowing to conduct post-selection inference procedures in the logistic model with l1 penalty.
     """
-    def __init__(self, truetheta, lamb, X=None, n=None, yobs=None, M=None, SM=None, sampling_algorithm=None):
+    def __init__(self, regularization=1, truetheta=None, X=None, n=None, p=None, yobs=None, M=None, SM=None, sampling_algorithm=None, seed=1):
         super(Methods, self).__init__()
-        self.truetheta = truetheta
-        p = len(truetheta)
+        np.random.seed(seed)
         if X is None:
-            np.random.seed(1)
             assert (n != None), 'If the design is not specified, you need to provide its number of lines: n.'
+            assert (p != None), 'If the design is not specified, you need to provide its number of columns: p.'
             X = np.random.normal(0,1,(n,p))
         self.X = X
-        self.sig = sigmoid(self.X @ self.truetheta)
+        n,p = X.shape
         if M is None:
-            if yobs is None:
-                yobs = np.random.rand(n) <= self.sig
+            self.truetheta = truetheta
+            self.sig = sigmoid(self.X @ self.truetheta)
+            yobs = np.random.rand(n) <= self.sig
             self.yobs = yobs
-            if np.shape(lamb) == ():
-                self.lamb = lamb
+            if np.shape(regularization) == ():
+                self.lamb = regularization
                 model = LogisticRegression(C = 1/self.lamb, penalty='l1', solver='liblinear', fit_intercept=False)
                 model.fit(self.X, self.yobs)
             else:
-                model = LogisticRegressionCV(Cs = lamb, cv=2, penalty='l1', solver='liblinear', fit_intercept=False)
+                list_regu = [1./lregu for lregu in regularization]
+                model = LogisticRegressionCV(Cs = list_regu, cv=2, penalty='l1', solver='liblinear', fit_intercept=False)
                 model.fit(self.X, self.yobs)
                 self.lamb = 1/model.C_[0]
             self.theta_obs = model.coef_[0]

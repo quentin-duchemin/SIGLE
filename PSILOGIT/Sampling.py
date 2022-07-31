@@ -12,8 +12,27 @@ class Sampling:
     """Class allowing to sample states in the selection event using the Rejection Sampling method (RS) or the Simulated Annealing algorithm (SA).
     When SA is used, the sequence of states provided is asymptotically uniformly distributed on the selection event.
     When RS is used, the sequence of states provided is distributed according to the conditional distribution.   
+
+    Parameters
+    ----------
+    sampling_algorithm : string
+        This parameter gives the last sampling algorithm used by the model. This is essential since the rejection sampling method gives states that are uniformly sampled on the selection event,
+        while the SEI-SLR algorithm provides states that are uniformly distributed on the selection event. Hence, if the states have been generated using the SEI-SLR algorithm, one needs to weights each sample 
+        correctly in order to compute the desired quantities (typically expectations with respect to the probability distribution of the observations conditional to the selection event).
+
+    Examples
+    --------
+    >>> from PSILOGIT.tools import *
+    >>> import PSILOGIT
+    >>> model = PSILOGIT.PSILOGIT(truetheta=np.zeros(10), regularization=1,  n=20, p=10)
+    >>> model.SEI_by_sampling(signull, nb_ite=100000)
+    >>> print(model.sampling_algorithm)
+    'RS' (for rejection sampling)
+    >>> model.SEI_SLR()
+    >>> print(model.sampling_algorithm)
+    'SA' (for simulated annealing)
     """
-    
+
     def __init__(self, sampling_algorithm):
         if sampling_algorithm is None:
             if (self.X).shape[1]<=15:

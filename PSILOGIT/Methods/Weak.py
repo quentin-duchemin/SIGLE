@@ -3,13 +3,13 @@ from tqdm.notebook import tqdm
 from ..tools import *
     
 class Weak:
-    """This weak learner is a two-sided test based on the statistic $\sum_{i=1}^n |\overline \pi_i^{\theta_0} - y_i|$ where $\overline \pi^{\theta_0}$ is the expectation of the vector of observations under the null conditional to the selection event.
+    """This weak learner is a two-sided test based on the statistic :math:`\sum_{i=1}^n |\overline \pi_i^{\\theta_0} - y_i|` where :math:`\overline \pi^{\\theta_0}` is the expectation of the vector of observations under the null conditional to the selection event.
     """
     def __init__(self):
         pass
 
     def pval_weak_learner(self, statesnull, statesalt, barpi, signull=None):
-        """Computes the P-values obtained from the weak-learner which is a two-sided test based on the statistic \sum_{i=1}^n |\bar \pi^{\pi^0}_i-y_i| where \bar \pi^{\pi^0} is the expectation of the vector of observations under the null conditional to the selection event.
+        """Computes the P-values obtained from the weak-learner which is a two-sided test based on the statistic :math:`\sum_{i=1}^n |\overline \pi^{\pi^0}_i-y_i|` where :math:`\overline \pi^{\pi^0}` is the expectation of the vector of observations under the null conditional to the selection event.
 
         Parameters
         ----------
