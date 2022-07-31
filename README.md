@@ -15,6 +15,7 @@ Currently, the package allows to solve post-selection inference problems using:
       title     = {SIGLE: a valid procedure for Selective Inference with the Generalized Linear Lasso},
       author    = {Duchemin, Quentin and De Castro, Yohann},
       year      = {2022},
+      url       = {https://hal.archives-ouvertes.fr/hal-03622196},
     }
 
 - the method a Taylor & Tibshirani (see [their paper ](https://arxiv.org/abs/1602.07358)).
@@ -27,7 +28,7 @@ Currently, the package allows to solve post-selection inference problems using:
 
 Our experiments have shown that the method from Taylor & Tibshirani is most of the time correctly calibrated but the authors do not provide theoretical guarantees for their approach. Their method is motivated by non rigorous asymptotic considerations. In [our paper ](https://hal.archives-ouvertes.fr/hal-03622196), we are the fist to propose a method for selective inference in the logistic model with theoratical guarantees under some well defined conditions.
 
-We show in `our paper <https://hal.archives-ouvertes.fr/hal-03622196>`_ that SIGLE seems always more powerful than the approach from [Taylor and Tibshirani ](https://arxiv.org/abs/1602.07358).
+We show in [our paper ](https://hal.archives-ouvertes.fr/hal-03622196) that SIGLE seems always more powerful than the approach from [Taylor and Tibshirani ](https://arxiv.org/abs/1602.07358).
 
 
 ## Get started
