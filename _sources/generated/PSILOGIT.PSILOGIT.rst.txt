@@ -1,0 +1,39 @@
+﻿PSILOGIT.PSILOGIT
+=================
+
+.. currentmodule:: PSILOGIT
+
+.. autoclass:: PSILOGIT
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~PSILOGIT.SEI_SLR
+      ~PSILOGIT.SEI_by_sampling
+      ~PSILOGIT.__init__
+      ~PSILOGIT.change_sampling_algorithm
+      ~PSILOGIT.compute_power
+      ~PSILOGIT.compute_selection_event
+      ~PSILOGIT.compute_theta_bar
+      ~PSILOGIT.ellipse_testing
+      ~PSILOGIT.histo_time_in_selection_event
+      ~PSILOGIT.last_visited_states
+      ~PSILOGIT.low_up_taylor
+      ~PSILOGIT.params_saturated
+      ~PSILOGIT.plot_cdf_pvalues
+      ~PSILOGIT.pval_SIGLE
+      ~PSILOGIT.pval_taylor
+      ~PSILOGIT.pval_weak_learner
+      ~PSILOGIT.time_in_selection_event
+      ~PSILOGIT.upper_bound_condition_CCLT
+   
+   
+
+   
+   
+   

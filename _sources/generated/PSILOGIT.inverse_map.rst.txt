@@ -1,0 +1,40 @@
+﻿PSILOGIT.inverse\_map
+=====================
+
+.. automodule:: PSILOGIT.inverse_map
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+   
+      inverse_map
+      logit
+      sigmoid
+      sigmoid1
+      sigmoid2
+      train_network
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Net
+   
+   
+
+   
+   
+   
+
+
+

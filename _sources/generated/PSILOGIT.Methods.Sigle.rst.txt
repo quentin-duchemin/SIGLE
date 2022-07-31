@@ -1,0 +1,29 @@
+﻿PSILOGIT.Methods.Sigle
+======================
+
+.. automodule:: PSILOGIT.Methods.Sigle
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Sigle
+   
+   
+
+   
+   
+   
+
+
+

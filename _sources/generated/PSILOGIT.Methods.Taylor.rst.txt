@@ -1,0 +1,29 @@
+﻿PSILOGIT.Methods.Taylor
+=======================
+
+.. automodule:: PSILOGIT.Methods.Taylor
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Taylor
+   
+   
+
+   
+   
+   
+
+
+

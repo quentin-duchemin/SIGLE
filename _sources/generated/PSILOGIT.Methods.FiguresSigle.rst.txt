@@ -1,0 +1,29 @@
+﻿PSILOGIT.Methods.FiguresSigle
+=============================
+
+.. automodule:: PSILOGIT.Methods.FiguresSigle
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      FiguresSigle
+   
+   
+
+   
+   
+   
+
+
+

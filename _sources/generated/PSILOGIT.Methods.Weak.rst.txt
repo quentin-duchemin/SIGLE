@@ -1,0 +1,29 @@
+﻿PSILOGIT.Methods.Weak
+=====================
+
+.. automodule:: PSILOGIT.Methods.Weak
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Weak
+   
+   
+
+   
+   
+   
+
+
+
