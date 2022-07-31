@@ -2,7 +2,7 @@
 
 ## A tool for post-selection inference in the logistic model
 
-``PSILOGIT`` is a Python package that solves post-selection inference problems for the logistic model when model selection in performed using a :math:`\ell_1`-penalised likelihood approach. PSILOGIT is particularly well suited to tackle composite hypothesis testing problems. 
+``PSILOGIT`` is a Python package that solves post-selection inference problems for the logistic model when model selection in performed using a l1-penalised likelihood approach. PSILOGIT is particularly well suited to tackle composite hypothesis testing problems. 
 
 Currently, the package allows to solve post-selection inference problems using:
 
@@ -24,7 +24,7 @@ Currently, the package allows to solve post-selection inference problems using:
 ## Why ``PSILOGIT``?
 
 
-``PSILOGIT`` is specially designed to address composite hypothesis testing problem after model selection using the non-zero coefficients obtained solving the :math:`\ell_1`-penalised logistic regression. 
+``PSILOGIT`` is specially designed to address composite hypothesis testing problem after model selection using the non-zero coefficients obtained solving the l1-penalised logistic regression. 
 
 Our experiments have shown that the method from Taylor & Tibshirani is most of the time correctly calibrated but the authors do not provide theoretical guarantees for their approach. Their method is motivated by non rigorous asymptotic considerations. In [our paper ](https://hal.archives-ouvertes.fr/hal-03622196), we are the fist to propose a method for selective inference in the logistic model with theoratical guarantees under some well defined conditions.
 
