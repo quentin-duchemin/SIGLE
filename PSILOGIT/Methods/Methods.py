@@ -33,7 +33,7 @@ class Methods(Sigle,Weak,Taylor):
                 PVALs /= normalization
         return PVALs
 
-    def plot_cdf_pvalues(self, lists_pvalues, names, states=None, sigalt=None, figname=None):
+    def plot_cdf_pvalues(self, lists_pvalues, names, states=None, sigalt=None, legend_outfig=False, figname=None):
         """Shows the cumulative distribution function of the p-values.
 
         Parameters
@@ -71,7 +71,10 @@ class Methods(Sigle,Weak,Taylor):
                 plt.plot(lsseuil,PVALs,label=names[j])
                     
         plt.plot([0,1],[0,1],'--')
-        plt.legend(fontsize=13)
+        if legend_outfig:
+            plt.legend(fontsize=14, loc='upper center', bbox_to_anchor=(0.5, 1.01+0.13*len(lists_pvalues)))
+        else:
+            plt.legend(fontsize=13)
         plt.title('CDF of the p-values',fontsize=13)
         if figname is not None:
             plt.savefig(figname,dpi=300)

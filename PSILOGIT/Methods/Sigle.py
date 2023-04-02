@@ -230,3 +230,227 @@ class Sigle(FiguresSigle):
             return lspvals_selec, lspvals_sat, gaps
         else:
             return lspvals_selec, lspvals_sat
+        
+
+    def pval_alt_SIGLE_sat(self, states, center_sat, cov_sat, l2_regularization=100000, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, statesnull=None, signull=None):
+        """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
+
+        Parameters
+        ----------
+        states : list of vectors in {0,1}^n
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS').
+        barpi : list of float
+            expectation of the vector of observations under the null conditional to the selection event.
+        l2_regularization : float
+            l2 regularization used to compute the MLE from the solver of Logistic Regression in sk-learn if 'use_net_MLE' is False. It should be as large as possible to remove regularization.
+        grad_descent : dictionary
+            Should be of the form {'lr':0.01,'return_gaps':True,'max_ite':100} and it is used for the method 'compute_theta_bar'. 
+            - 'lr' is the step size for the gradient descent algorithm.
+            - 'return_gaps' is set to True if one wants to return at the end of the algorithm the list of $\| X_M^{\top} (\sigma(X_M \bar \theta^{(t)})- \bar \pi) \|_{\infty}$ for the iterates $\theta^{(t)}$ of the gradient descent algorithm.
+            - 'max_ite' is the maximal number of iterations in the gradient descent algorithm.
+        calibrated_from_samples : bool
+            Set to 'True' if we want to calibrate the testing procedure from samples in 'statesnull'.
+        statesnull : list of vectors in {0,1}^n
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS') when we consider the null hypothesis.
+        signull : vector in [0,1]^n
+            Expectation of the response vector under the null. It is used when we 'calibrated_from_samples' is True and when 'sampling_algorithm' is 'SA' (Simulated Annealing).
+
+        Returns
+        -------
+        lspvals_selec : list of floats 
+            samples of p-values using SIGLE in the selected model.
+        lspvals_sat : list of floats
+            samples of p-values using SIGLE in the saturated model.
+
+        Note
+        ----
+        If \rho \in \mathds R^s (where s=|M|) can be written as \rho = X[:,M].T @ y where y \in \{0,1\}^n, then net(\rho) is the unconditional unpenalized MLE using the design X[:,M] and the response variable y.
+        """
+        n,p = (self.X).shape
+        matXtrue = self.X[:,self.M]
+        
+        lspvals_selec = []
+        lspvals_sat = []
+
+        lsstat_sat, lsstatnull_sat = [], []
+        for i in tqdm(range(len(states))):
+            y = np.array(states[i])
+            # saturated
+            stat = np.linalg.norm( cov_sat @ (y-center_sat))**2
+            lsstat_sat.append(stat)
+        for i in tqdm(range(len(statesnull))):
+            y = np.array(statesnull[i])
+            # saturated
+            stat = np.linalg.norm( cov_sat @ (y-center_sat))**2
+            lsstatnull_sat.append(stat)
+        lsstatnull_sat = np.array(lsstatnull_sat)
+        if self.sampling_algorithm == 'RS':
+            for j in range(len(states)):
+                lspvals_sat.append(np.mean(lsstat_sat[j]<=lsstatnull_sat))
+        else:                
+            for j in range(len(states)):
+                pval_selec, pval_sat = 0,0
+                normalization = 0
+                for l,y in enumerate(statesnull):
+                    proba = compute_proba(y,signull)
+                    normalization += proba
+                    pval_sat += proba * (lsstat_sat[j]<=lsstatnull_selec[l])
+                lspvals_sat.append(pval_selec / normalization)
+        return lspvals_sat
+ 
+    
+    def pval_alt_SIGLE_sel(self, states, center_sel, cov_sel, l2_regularization=100000, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, statesnull=None, signull=None):
+        """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
+
+        Parameters
+        ----------
+        states : list of vectors in {0,1}^n
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS').
+        barpi : list of float
+            expectation of the vector of observations under the null conditional to the selection event.
+        l2_regularization : float
+            l2 regularization used to compute the MLE from the solver of Logistic Regression in sk-learn if 'use_net_MLE' is False. It should be as large as possible to remove regularization.
+        grad_descent : dictionary
+            Should be of the form {'lr':0.01,'return_gaps':True,'max_ite':100} and it is used for the method 'compute_theta_bar'. 
+            - 'lr' is the step size for the gradient descent algorithm.
+            - 'return_gaps' is set to True if one wants to return at the end of the algorithm the list of $\| X_M^{\top} (\sigma(X_M \bar \theta^{(t)})- \bar \pi) \|_{\infty}$ for the iterates $\theta^{(t)}$ of the gradient descent algorithm.
+            - 'max_ite' is the maximal number of iterations in the gradient descent algorithm.
+        calibrated_from_samples : bool
+            Set to 'True' if we want to calibrate the testing procedure from samples in 'statesnull'.
+        statesnull : list of vectors in {0,1}^n
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS') when we consider the null hypothesis.
+        signull : vector in [0,1]^n
+            Expectation of the response vector under the null. It is used when we 'calibrated_from_samples' is True and when 'sampling_algorithm' is 'SA' (Simulated Annealing).
+
+        Returns
+        -------
+        lspvals_selec : list of floats 
+            samples of p-values using SIGLE in the selected model.
+        lspvals_sat : list of floats
+            samples of p-values using SIGLE in the saturated model.
+
+        Note
+        ----
+        If \rho \in \mathds R^s (where s=|M|) can be written as \rho = X[:,M].T @ y where y \in \{0,1\}^n, then net(\rho) is the unconditional unpenalized MLE using the design X[:,M] and the response variable y.
+        """
+        n,p = (self.X).shape
+        matXtrue = self.X[:,self.M]
+        
+        lspvals_selec = []
+
+        lsstat_selec, lsstatnull_selec = [], []
+        for i in tqdm(range(len(states))):
+            y = np.array(states[i])
+            # selected
+            model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+            model.fit(matXtrue, y)
+            theta = model.coef_[0]
+            stat = np.linalg.norm( cov_sel @ (theta - center_sel))**2
+            lsstat_selec.append(stat)
+        for i in tqdm(range(len(statesnull))):
+            y = np.array(statesnull[i])
+            # selected
+            model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+            model.fit(matXtrue, y)
+            theta = model.coef_[0]
+            stat = np.linalg.norm( cov_sel @ (theta - center_sel))**2
+            lsstatnull_selec.append(stat)
+        lsstatnull_selec = np.array(lsstatnull_selec)
+        if self.sampling_algorithm == 'RS':
+            for j in range(len(states)):
+                lspvals_selec.append(np.mean(lsstat_selec[j]<=lsstatnull_selec))  
+        else:                
+            for j in range(len(states)):
+                pval_selec, pval_sat = 0,0
+                normalization = 0
+                for l,y in enumerate(statesnull):
+                    proba = compute_proba(y,signull)
+                    normalization += proba
+                    pval_selec += proba * (lsstat_selec[j]<=lsstatnull_selec[l])
+                lspvals_selec.append(pval_selec / normalization)
+        return lspvals_selec
+        
+    
+    def pval_alt_SIGLE(self, states, center_sat, cov_sat, center_sel, cov_sel, l2_regularization=100000, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, statesnull=None, signull=None):
+        """Computes the P-values using the post-selection inference method SIGLE (both in the saturated and the selected model).
+
+        Parameters
+        ----------
+        states : list of vectors in {0,1}^n
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS').
+        barpi : list of float
+            expectation of the vector of observations under the null conditional to the selection event.
+        l2_regularization : float
+            l2 regularization used to compute the MLE from the solver of Logistic Regression in sk-learn if 'use_net_MLE' is False. It should be as large as possible to remove regularization.
+        grad_descent : dictionary
+            Should be of the form {'lr':0.01,'return_gaps':True,'max_ite':100} and it is used for the method 'compute_theta_bar'. 
+            - 'lr' is the step size for the gradient descent algorithm.
+            - 'return_gaps' is set to True if one wants to return at the end of the algorithm the list of $\| X_M^{\top} (\sigma(X_M \bar \theta^{(t)})- \bar \pi) \|_{\infty}$ for the iterates $\theta^{(t)}$ of the gradient descent algorithm.
+            - 'max_ite' is the maximal number of iterations in the gradient descent algorithm.
+        calibrated_from_samples : bool
+            Set to 'True' if we want to calibrate the testing procedure from samples in 'statesnull'.
+        statesnull : list of vectors in {0,1}^n
+            'states' should contain binary vectors sampled either from the uniform distribution on the selection event (in which case the attribute 'sampling_algorithm' is equal to 'SA') or sampled from the conditional distribution (in which cas the attribute 'sampling_algorithm' is equal to 'RS') when we consider the null hypothesis.
+        signull : vector in [0,1]^n
+            Expectation of the response vector under the null. It is used when we 'calibrated_from_samples' is True and when 'sampling_algorithm' is 'SA' (Simulated Annealing).
+
+        Returns
+        -------
+        lspvals_selec : list of floats 
+            samples of p-values using SIGLE in the selected model.
+        lspvals_sat : list of floats
+            samples of p-values using SIGLE in the saturated model.
+
+        Note
+        ----
+        If \rho \in \mathds R^s (where s=|M|) can be written as \rho = X[:,M].T @ y where y \in \{0,1\}^n, then net(\rho) is the unconditional unpenalized MLE using the design X[:,M] and the response variable y.
+        """
+        n,p = (self.X).shape
+        matXtrue = self.X[:,self.M]
+        
+        lspvals_selec = []
+        lspvals_sat = []
+
+        lsstat_sat, lsstatnull_sat = [], []
+        lsstat_selec, lsstatnull_selec = [], []
+        for i in tqdm(range(len(states))):
+            y = np.array(states[i])
+            # selected
+            model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+            model.fit(matXtrue, y)
+            theta = model.coef_[0]
+            stat = np.linalg.norm( cov_sel @ (theta - center_sel))**2
+            lsstat_selec.append(stat)
+            # saturated
+            stat = np.linalg.norm( cov_sat @ (y-center_sat))**2
+            lsstat_sat.append(stat)
+        for i in tqdm(range(len(statesnull))):
+            y = np.array(statesnull[i])
+            # selected
+            model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+            model.fit(matXtrue, y)
+            theta = model.coef_[0]
+            stat = np.linalg.norm( cov_sel @ (theta - center_sel))**2
+            lsstatnull_selec.append(stat)
+            # saturated
+            stat = np.linalg.norm( cov_sat @ (y-center_sat))**2
+            lsstatnull_sat.append(stat)
+        lsstatnull_sat = np.array(lsstatnull_sat)
+        lsstatnull_selec = np.array(lsstatnull_selec)
+        if self.sampling_algorithm == 'RS':
+            for j in range(len(states)):
+                lspvals_sat.append(np.mean(lsstat_sat[j]<=lsstatnull_sat))
+                lspvals_selec.append(np.mean(lsstat_selec[j]<=lsstatnull_selec))  
+        else:                
+            for j in range(len(states)):
+                pval_selec, pval_sat = 0,0
+                normalization = 0
+                for l,y in enumerate(statesnull):
+                    proba = compute_proba(y,signull)
+                    normalization += proba
+                    pval_selec += proba * (lsstat_selec[j]<=lsstatnull_selec[l])
+                    pval_sat += proba * (lsstat_sat[j]<=lsstatnull_selec[l])
+                lspvals_sat.append(pval_selec / normalization)
+                lspvals_selec.append(pval_selec / normalization)
+        return lspvals_selec, lspvals_sat
+ 

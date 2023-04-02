@@ -9,33 +9,36 @@ class Figures:
     def __init__(self):
         pass
     
-    def plot_cdf_pvalues(self, lists_pvalues, names, figname=None):
-        """Shows the cumulative distribution function of the p-values.
+#     def plot_cdf_pvalues(self, lists_pvalues, names, legend_outfig=False, figname=None):
+#         """Shows the cumulative distribution function of the p-values.
 
-        Parameters
-        ----------
-        lists_pvalues : list of list of float
-            each sublist contains p-values obtained from a specific method.
-        names : list of string
-            contains the names of the different methods used to compute the sublist of p-values from 'lists_pvalues'.
-        """
-        assert len(lists_pvalues)==len(names),'You should provide exactly one name for each list of p-values'
-        for j in range(len(names)):
-            lspvals = lists_pvalues[j]
-            lspvals = np.sort(lspvals)
-            lsseuil = np.linspace(0,1,100)
-            PVALs = np.zeros(len(lsseuil))
-            for i,t in enumerate(lsseuil):
-                PVALs[i] = np.sum(lspvals<=t)/len(lspvals)
+#         Parameters
+#         ----------
+#         lists_pvalues : list of list of float
+#             each sublist contains p-values obtained from a specific method.
+#         names : list of string
+#             contains the names of the different methods used to compute the sublist of p-values from 'lists_pvalues'.
+#         """
+#         assert len(lists_pvalues)==len(names),'You should provide exactly one name for each list of p-values'
+#         for j in range(len(names)):
+#             lspvals = lists_pvalues[j]
+#             lspvals = np.sort(lspvals)
+#             lsseuil = np.linspace(0,1,100)
+#             PVALs = np.zeros(len(lsseuil))
+#             for i,t in enumerate(lsseuil):
+#                 PVALs[i] = np.sum(lspvals<=t)/len(lspvals)
 
-            plt.ylim(ymax = 1, ymin = 0)
-            plt.xlim(xmax = 1, xmin = 0)
-            plt.plot(lsseuil,PVALs,label=names[j])
-        plt.plot([0,1],[0,1],'--')
-        plt.legend(fontsize=13)
-        plt.title('CDF of the p-values',fontsize=13)
-        if figname is not None:
-            plt.savefig(name_figsave,dpi=300)
+#             plt.ylim(ymax = 1, ymin = 0)
+#             plt.xlim(xmax = 1, xmin = 0)
+#             plt.plot(lsseuil,PVALs,label=names[j])
+#         plt.plot([0,1],[0,1],'--')
+#         if legend_outfig:
+#             plt.legend(fontsize=14, loc='upper center', bbox_to_anchor=(0.5, 1.6))
+#         else:
+#             plt.legend(fontsize=13)
+#         plt.title('CDF of the p-values',fontsize=13)
+#         if figname is not None:
+#             plt.savefig(name_figsave,dpi=300)
             
 
     def ellipse_testing(self, states, barpi, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, l2_regularization=100000):
