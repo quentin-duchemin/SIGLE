@@ -269,7 +269,6 @@ class Sigle(FiguresSigle):
         n,p = (self.X).shape
         matXtrue = self.X[:,self.M]
         
-        lspvals_selec = []
         lspvals_sat = []
 
         lsstat_sat, lsstatnull_sat = [], []
@@ -278,6 +277,7 @@ class Sigle(FiguresSigle):
             # saturated
             stat = np.linalg.norm( cov_sat @ (y-center_sat))**2
             lsstat_sat.append(stat)
+        lsstat_sat = np.array(lsstat_sat)
         for i in tqdm(range(len(statesnull))):
             y = np.array(statesnull[i])
             # saturated
@@ -287,15 +287,22 @@ class Sigle(FiguresSigle):
         if self.sampling_algorithm == 'RS':
             for j in range(len(states)):
                 lspvals_sat.append(np.mean(lsstat_sat[j]<=lsstatnull_sat))
-        else:                
+        else:     
+            probas = np.zeros(len(statesnull))
+            for l,y in enumerate(statesnull):
+                probas[l] = compute_proba(y,signull)
+            probas /= np.sum(probas)
             for j in range(len(states)):
-                pval_selec, pval_sat = 0,0
-                normalization = 0
-                for l,y in enumerate(statesnull):
-                    proba = compute_proba(y,signull)
-                    normalization += proba
-                    pval_sat += proba * (lsstat_sat[j]<=lsstatnull_selec[l])
-                lspvals_sat.append(pval_selec / normalization)
+                pval_sat = np.sum(probas * (lsstat_sat[j]<=lsstatnull_sat))
+                lspvals_sat.append(pval_sat)
+#             for j in range(len(states)):
+#                 pval_sat = 0
+#                 normalization = 0
+#                 for l,y in enumerate(statesnull):
+#                     proba = compute_proba(y,signull)
+#                     normalization += proba
+#                     pval_sat += proba * (lsstat_sat[j]<=lsstatnull_sat[l])
+#                 lspvals_sat.append(pval_sat / normalization)
         return lspvals_sat
  
     
@@ -359,15 +366,22 @@ class Sigle(FiguresSigle):
         if self.sampling_algorithm == 'RS':
             for j in range(len(states)):
                 lspvals_selec.append(np.mean(lsstat_selec[j]<=lsstatnull_selec))  
-        else:                
+        else:
+            probas = np.zeros(len(statesnull))
+            for l,y in enumerate(statesnull):
+                probas[l] = compute_proba(y,signull)
+            probas /= np.sum(probas)
             for j in range(len(states)):
-                pval_selec, pval_sat = 0,0
-                normalization = 0
-                for l,y in enumerate(statesnull):
-                    proba = compute_proba(y,signull)
-                    normalization += proba
-                    pval_selec += proba * (lsstat_selec[j]<=lsstatnull_selec[l])
-                lspvals_selec.append(pval_selec / normalization)
+                pval_selec = np.sum(probas * (lsstat_selec[j]<=lsstatnull_selec))
+                lspvals_selec.append(pval_selec)
+#             for j in range(len(states)):
+#                 pval_selec, pval_sat = 0,0
+#                 normalization = 0
+#                 for l,y in enumerate(statesnull):
+#                     proba = compute_proba(y,signull)
+#                     normalization += proba
+#                     pval_selec += proba * (lsstat_selec[j]<=lsstatnull_selec[l])
+#                 lspvals_selec.append(pval_selec / normalization)
         return lspvals_selec
         
     
@@ -449,7 +463,7 @@ class Sigle(FiguresSigle):
                     proba = compute_proba(y,signull)
                     normalization += proba
                     pval_selec += proba * (lsstat_selec[j]<=lsstatnull_selec[l])
-                    pval_sat += proba * (lsstat_sat[j]<=lsstatnull_selec[l])
+                    pval_sat += proba * (lsstat_sat[j]<=lsstatnull_sat[l])
                 lspvals_sat.append(pval_selec / normalization)
                 lspvals_selec.append(pval_selec / normalization)
         return lspvals_selec, lspvals_sat
