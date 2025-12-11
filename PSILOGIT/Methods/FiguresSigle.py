@@ -12,7 +12,7 @@ class FiguresSigle:
     def __init__(self):
         pass
 
-    def ellipse_testing(self, states, barpi, signull=None, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, calibrated_from_samples=False, statesnull=None, l2_regularization=100000):
+    def ellipse_testing_multiple_obs(self, states, barpi, signull=None, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, calibrated_from_samples=False, statesnull=None, l2_regularization=100000):
         """For a selected support of size 2, this method show the proportion of stats following in the ellipse characterizing the rejection rejection of the hypothesis test with SIGLE in the selected model.
         
         Parameters
@@ -115,8 +115,9 @@ class FiguresSigle:
                         sizeout.append(proba)
             
             if self.sampling_algorithm == 'RS':
-                plt.scatter(lsxin,lsyin,c='green',marker='+',label=str(int(100*len(lsxin)/(len(lsxin)+len(lsxout))))+' % in the ellipse')
-                plt.scatter(lsxout,lsyout,c='red',marker='x',label=str(int(100*len(lsxout)/(len(lsxin)+len(lsxout))))+' % outside of the ellipse')
+                labelin = np.round(100.*len(lsxin)/(len(lsxin)+len(lsxout)), 2)
+                plt.scatter(lsxin,lsyin,c='green',marker='+',label=str(labelin)+' % in the ellipse')
+                plt.scatter(lsxout,lsyout,c='red',marker='x',label=str(np.round(100-np.round(labelin,2),2))+' % in the ellipse')
             else:
                 sizeout = np.array(sizeout)
                 sizein = np.array(sizein)
@@ -136,6 +137,116 @@ class FiguresSigle:
                 plt.savefig(figname,dpi=300)
             plt.show()
             
+    def ellipse_testing(self, barpi, signull=None, alpha=0.05, figname=None, grad_descent={'lr':0.01,'return_gaps':True,'max_ite':100}, statesnull=None, l2_regularization=100000):
+        """For a selected support of size 2, this method show the proportion of stats following in the ellipse characterizing the rejection rejection of the hypothesis test with SIGLE in the selected model.
+        
+        Parameters
+        ----------
+        barpi : list of float
+            expectation of the vector of observations under the null conditional to the selection event.
+        signull : vector in [0,1]^n
+            Expectation of the response vector under the null. It is used when we 'calibrated_from_samples' is True and when 'sampling_algorithm' is 'SA' (Simulated Annealing).
+        alpha : float
+            Level of the test.
+        figname : bool
+            If not None, the figure will be saved with the path 'figname'.
+        grad_descent : dictionary
+            Should be of the form {'lr':0.01,'return_gaps':True,'max_ite':100} and it is used for the method 'compute_theta_bar'. 
+            - 'lr' is the step size for the gradient descent algorithm.
+            - 'return_gaps' is set to True if one wants to return at the end of the algorithm the list of $\| X_M^{\top} (\sigma(X_M \bar \theta^{(t)})- \bar \pi) \|_{\infty}$ for the iterates $\theta^{(t)}$ of the gradient descent algorithm.
+        l2_regularization : float
+            l2 regularization used to compute the MLE from the solver of Logistic Regression in sk-learn. It should be as large as possible to remove regularization.
+        """
+        if len(self.M)!=2:
+            print('The selected support should be of size 2 for 2D visualization.')
+        else:
+            from math import pi, cos, sin
+            import matplotlib
+            matplotlib.rcParams.update({'font.size': 12})
+            n,p = np.shape(self.X)
+            matXtrue = self.X[:,self.M]
+
+            tildetheta, gaps = self.compute_theta_bar(barpi, grad_descent=grad_descent)
+            u=tildetheta[0]       #x-position of the center
+            v=tildetheta[1]       #y-position of the center 
+            tildeGN = matXtrue.T @ np.diag(barpi*(np.ones(n)-barpi)) @ matXtrue
+            usvd,s,vt = np.linalg.svd(tildeGN)
+            tildeGN_12 = usvd @ np.diag(1/np.sqrt(s)) @ vt
+            GNtilde = matXtrue.T @ np.diag(sigmoid1(matXtrue @ tildetheta)) @ matXtrue
+            VN = tildeGN_12 @ GNtilde
+
+            usvd,s,vt = np.linalg.svd(VN)
+            df = matXtrue.shape[1]
+            
+            quantile = np.linalg.norm( VN @ (self.theta_obs[self.M] - tildetheta))**2
+            
+            width = np.sqrt(quantile / s[1]**2)
+            height = np.sqrt(quantile / s[0]**2)
+            angle = np.arccos(np.vdot(np.array([1,0]),vt[1,:]))
+
+            a=width       #radius on the x-axis
+            b=height      #radius on the y-axis
+            t_rot=angle #rotation angle
+
+            t = np.linspace(0, 2*pi, 100)
+            Ell = np.array([a*np.cos(t) , b*np.sin(t)])  
+                 #u,v removed to keep the same center location
+            R_rot = np.array([[cos(t_rot) , -sin(t_rot)],[sin(t_rot) , cos(t_rot)]])  
+                 #2-D rotation matrix
+            Ell_rot = np.zeros((2,Ell.shape[1]))
+            for i in range(Ell.shape[1]):
+                Ell_rot[:,i] = np.dot(R_rot,Ell[:,i])
+            plt.plot( u+Ell_rot[0,:] , v+Ell_rot[1,:],'darkorange',linewidth=3 )    #rotated ellipse
+            plt.grid(color='lightgray',linestyle='--')
+
+            lsxin = []
+            lsyin = []
+            lsxout = []
+            lsyout = []
+            sizein = []
+            sizeout = []
+            
+            for i,y in enumerate(statesnull):
+                model = LogisticRegression(C=l2_regularization, solver='liblinear', fit_intercept=False)
+                model.fit(matXtrue, y)
+                hattheta = model.coef_[0]
+                a = hattheta[0]
+                b = hattheta[1]
+                if self.sampling_algorithm == 'SA':
+                    proba = compute_proba(y, signull)
+                if np.linalg.norm( VN @ (np.array([a,b]) - tildetheta))**2<=quantile:
+                    lsxin.append(a)
+                    lsyin.append(b)
+                    if self.sampling_algorithm == 'SA':
+                        sizein.append(proba)
+                else:
+                    lsxout.append(a)
+                    lsyout.append(b)
+                    if self.sampling_algorithm == 'SA':
+                        sizeout.append(proba)
+            
+            if self.sampling_algorithm == 'RS':
+                labelin = (np.round(100.*len(lsxin)/(len(lsxin)+len(lsxout)), 2))
+                plt.scatter(lsxin,lsyin,c='green',marker='+',label=str(labelin)+' % in the ellipse')
+                plt.scatter(lsxout,lsyout,c='red',marker='x',label=str(100.-labelin)+' % in the ellipse')
+            else:
+                sizeout = np.array(sizeout)
+                sizein = np.array(sizein)
+                
+                low = min(np.min(sizein),np.min(sizeout))
+                up = max(np.max(sizein),np.max(sizeout))
+                sizeout = 9*(sizeout-low)/(up-low)+1
+                sizein = 9*(sizein-low)/(up-low)+1
+                plt.scatter(lsxin,lsyin,c='green',marker='+',s=sizein, label=str(int(100*np.sum(sizein)/(np.sum(sizein)+np.sum(sizeout))))+' % in the ellipse')
+                plt.scatter(lsxout,lsyout,c='red',marker='x',s=sizeout, label=str(int(100*np.sum(sizeout)/(np.sum(sizein)+np.sum(sizeout))))+' % outside of the ellipse')
+
+            plt.legend(fontsize=13)
+
+            print('Proportion in the ellipse : ', len(lsxin)/(len(lsxin)+len(lsxout)))
+            print('Proportion outside of the ellipse : ', len(lsxout)/(len(lsxin)+len(lsxout)))
+            if figname is not None:
+                plt.savefig(figname,dpi=300)
+            plt.show()
 
     def compute_selection_event(self, conditioning_signs=False, compare_with_energy=False, delta=0.009):
         """Finds all the vectors belonging to the selection event.
@@ -245,7 +356,7 @@ class FiguresSigle:
         plt.xticks(fontsize=13)
         plt.xticks(rotation = rotation_angle) 
         if figname is not None:
-            plt.savefig(figname,dpi=250)
+            plt.savefig(figname,dpi=250, bbox_inches='tight')
     
     def last_visited_states(self, states, lsM_admissibles=None, energies=None, figname=None):
         """Shows that time spent in the selection event using the SEI-SLR algorithm.

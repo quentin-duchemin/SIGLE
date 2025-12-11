@@ -223,7 +223,7 @@ class Figures:
         plt.ylabel('Proposition of time spent in $E_{M}$',fontsize=12)
         plt.xticks(fontsize=13)
         if figname is not None:
-            plt.savefig(figname,dpi=250)
+            plt.savefig(figname,dpi=250,bbox_inches='tight')
     
     def last_visited_states(self, states, lsM_admissibles, figname=None):
         """Shows that time spent in the selection event using the SEI-SLR algorithm.

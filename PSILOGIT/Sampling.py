@@ -80,8 +80,43 @@ class Sampling:
                     saved_states.append(y)
                     count += 1
         return saved_states
+    
+    def proposal_SEI_SLR(self, time, current_y, time_irreducible=0.01):
+        """Proposal function for the SEI-SLR algorithm.
 
-    def SEI_SLR(self, temperature=None, delta=0.009, total_length_SEISLR_path=1500, backup_start_time=1000, random_start=True, conditioning_signs=True, repulsing_force = True, seed=None):
+        Parameters
+        ----------
+        time : int
+            Current iteration.
+        current_y : vector in {0,1}^n
+            Current state.
+
+        Returns
+        -------
+        proposed_y : vector in {0,1}^n
+            Proposed state.
+        """
+        n = len(current_y)
+        proposed_y = np.copy(current_y)
+        corner_avoided = False
+        while(not(corner_avoided)):
+            if time_irreducible>0.:
+                nb = np.random.geometric(p=max(0,np.exp(-time_irreducible*(time+1))))
+                nb = min(nb, n)
+                permu = np.arange(0,n)
+                np.random.shuffle(permu)
+                proposed_y[permu[0:nb]] = (proposed_y[permu[0:nb]]+1)%2
+            else:
+                pos = np.random.randint(0,high=n)
+                proposed_y[pos] = (proposed_y[pos]+1)%2
+
+            if np.sum(proposed_y) in [len(proposed_y),0]:
+                proposed_y = np.copy(current_y)
+            else:
+                corner_avoided = True
+        return proposed_y
+
+    def SEI_SLR(self, temperature=None, delta=0.009, total_length_SEISLR_path=1500, backup_start_time=1000, random_start=True, conditioning_signs=True, repulsing_force = True, seed=None, time_irreducible=0.01):
         """SEI-SLR (Selection Event Identification for the Sparse Logistic Regression) algorithm.
 
         Parameters
@@ -179,6 +214,7 @@ class Sampling:
         next_y_admis = 1
 
         for j in tqdm(range(total_length_SEISLR_path)):
+            old_state = np.copy(y)
             if time_last_admissible > time_before_restart:
                 # We restart the procedure from a admissible 'y'
                 ind = np.random.randint(0,min(y_admissible.shape[0],next_y_admis))
@@ -187,14 +223,7 @@ class Sampling:
             else:
                 # We visit a adjacent point. We ensure to avoid the two vectors (with all zeros or all ones), otherwise
                 # solving the Logistic Regression with sklearn fails
-                corner_avoided = False
-                while(not(corner_avoided)):
-                    pos = np.random.randint(0,high=n)
-                    y[pos] = (y[pos]+1)%2
-                    if np.sum(y) in [len(y),0]:
-                        y[pos] = (y[pos]+1)%2
-                    else:
-                        corner_avoided = True
+                y = self.proposal_SEI_SLR(j, y, time_irreducible=time_irreducible)
             foundy = False
             count = 0
             while ((foundy != True) and count < nsave):
@@ -234,13 +263,13 @@ class Sampling:
                         old_energy = new_energy
                     else:
                         # If the current 'y' does not come from a restart of the chain from an admissible point
-                        y[pos] = (y[pos]+1)%2 # We come back to the previous state
+                        y = old_state # We come back to the previous state
                       
 
                 else:
                     if np.exp(- deltaE / T) <= np.random.rand(): 
                         # If the current 'y' does not come from a restart of the chain from an admissible point
-                        y[pos] = (y[pos]+1)%2 # We come back to the previous state
+                        y = old_state # We come back to the previous state
                     else:
                        # If the current 'y' comes from a restart of the chain, we always accept it
                         old_energy = new_energy
